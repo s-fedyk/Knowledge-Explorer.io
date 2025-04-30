@@ -1,5 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import './App.css'; // Keep this if you're keeping some of the original styles
+import { useState } from 'react';
+import './App.css';
+import ChatWindow from './components/ChatWindow';
+import NavSidebar from './components/NavSidebar';
 
 // Simple RAG implementation for demonstration
 const useRAG = () => {
@@ -79,21 +81,18 @@ const useRAG = () => {
 
 function App() {
   const [messages, setMessages] = useState([]);
-  const [inputValue, setInputValue] = useState('');
   const [files, setFiles] = useState({});
   const [activeFile, setActiveFile] = useState(null);
-  const fileInputRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  const { addDocument, removeDocument, generateResponse, documents } = useRAG();
+  const [chatHistories, setChatHistories] = useState([
+    { id: '1', name: 'Research Project' },
+    { id: '2', name: 'Meeting Notes' },
+    { id: '3', name: 'Personal Chat' }
+  ]);
+  const [activeChatHistory, setActiveChatHistory] = useState(null);
+  const { addDocument, removeDocument, generateResponse } = useRAG();
 
-  // Scroll to bottom of chat
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleFileUpload = async (e) => {
-    const uploadedFiles = Array.from(e.target.files);
-    
+  // Process uploaded files
+  const processFiles = async (uploadedFiles) => {
     for (const file of uploadedFiles) {
       const fileId = Date.now() + '-' + file.name;
       
@@ -111,11 +110,6 @@ function App() {
       
       // Add system message
       addMessage('system', `File uploaded: ${file.name}`);
-    }
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -150,165 +144,53 @@ function App() {
     setMessages(prev => [...prev, { sender, text, timestamp: new Date() }]);
   };
 
-  const handleSendMessage = () => {
-    if (inputValue.trim() === '') return;
-    
+  const handleSendMessage = (userMessage) => {
     // Add user message
-    addMessage('user', inputValue);
+    addMessage('user', userMessage);
     
-    // Generate response
+    // Generate response with a small delay to simulate processing
     setTimeout(() => {
-      const response = generateResponse(inputValue);
+      const response = generateResponse(userMessage);
       addMessage('bot', response);
     }, 500);
-    
-    // Clear input
-    setInputValue('');
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
+  // Create new chat history
+  const createNewChatHistory = () => {
+    const newId = Date.now().toString();
+    const newHistory = { id: newId, name: `Chat ${chatHistories.length + 1}` };
+    setChatHistories(prev => [...prev, newHistory]);
+    setActiveChatHistory(newId);
+    setMessages([]);
   };
 
-  const formatTime = (date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Handle chat history selection
+  const selectChatHistory = (id) => {
+    setActiveChatHistory(id);
+    // In a real app, you would load messages from storage/database here
+    setMessages([]);
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* File System Sidebar */}
-      <div className="w-64 bg-white shadow-md p-4 flex flex-col">
-        <h2 className="text-lg font-bold mb-4">Documents</h2>
-        
-        {/* Upload Button */}
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-blue-500 text-white p-2 rounded mb-4 hover:bg-blue-600 flex items-center justify-center"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Upload Files
-        </button>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden" 
-          onChange={handleFileUpload} 
-          multiple 
-        />
-        
-        {/* File List */}
-        <div className="flex-grow overflow-y-auto">
-          {Object.keys(files).length === 0 ? (
-            <div className="text-gray-500 text-center italic">
-              No files uploaded
-            </div>
-          ) : (
-            <ul>
-              {Object.entries(files).map(([id, file]) => (
-                <li 
-                  key={id} 
-                  className={`p-2 flex justify-between items-center mb-1 rounded cursor-pointer ${
-                    activeFile === id ? 'bg-blue-100' : 'hover:bg-gray-50'
-                  }`}
-                  onClick={() => setActiveFile(id)}
-                >
-                  <div className="truncate flex-grow">{file.name}</div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFile(id);
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+    <div className="flex w-screen h-screen bg-gray-100">
+      {/* Navigation Sidebar Component */}
+      <NavSidebar 
+        chatHistories={chatHistories}
+        activeChatHistory={activeChatHistory}
+        onSelectChatHistory={selectChatHistory}
+        onCreateNewChat={createNewChatHistory}
+        files={files}
+        activeFile={activeFile}
+        onFileSelect={setActiveFile}
+        onFileUpload={processFiles}
+        onFileRemove={removeFile}
+      />
       
-      {/* Chat Area */}
-      <div className="flex-grow flex flex-col">
-        {/* Chat Header */}
-        <div className="bg-white p-4 shadow-sm">
-          <h1 className="text-xl font-bold">Document Chatbot</h1>
-          <p className="text-sm text-gray-500">
-            Chat with your documents using RAG ({Object.keys(files).length} document{Object.keys(files).length !== 1 ? 's' : ''} loaded)
-          </p>
-        </div>
-        
-        {/* Messages */}
-        <div className="flex-grow p-4 overflow-y-auto bg-gray-50">
-          {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-400">
-              <div className="text-center">
-                <svg className="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                <p>Upload documents and start chatting</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div 
-                  key={index} 
-                  className={`flex ${
-                    message.sender === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  <div 
-                    className={`max-w-md p-3 rounded-lg ${
-                      message.sender === 'user' 
-                        ? 'bg-blue-500 text-white' 
-                        : message.sender === 'system' 
-                          ? 'bg-gray-200 text-gray-800' 
-                          : 'bg-white text-gray-800 shadow'
-                    }`}
-                  >
-                    <div className="text-sm">{message.text}</div>
-                    <div className="text-xs text-right mt-1 opacity-70">
-                      {formatTime(message.timestamp)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-        
-        {/* Input Area */}
-        <div className="bg-white p-4 shadow-inner">
-          <div className="flex">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask a question about your documents..."
-              className="flex-grow p-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleSendMessage}
-              className="bg-blue-500 text-white p-2 rounded-r hover:bg-blue-600"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Chat Window */}
+      <ChatWindow 
+        messages={messages}
+        onSendMessage={handleSendMessage}
+      />
     </div>
   );
 }
