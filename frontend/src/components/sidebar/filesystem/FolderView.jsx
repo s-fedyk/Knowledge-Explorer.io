@@ -78,13 +78,13 @@ const FolderView = ({
   return (
     <div ref={dropAreaRef} className="h-full transition-colors rounded-lg">
       {/* Apple-style Path Navigation */}
-      <div className="flex items-center mb-3 bg-gray-50 p-2 rounded shadow-sm">
+      <div className="flex items-center bg-white border-b border-gray-300 rounded">
         {/* Back/Forward Navigation */}
-        <div className="flex space-x-1 mr-3 border-r pr-3">
+        <div className="flex ">
           <button 
             onClick={navigateBack}
             disabled={!canGoBack}
-            className={`p-1 rounded-full hover:bg-gray-200 transition-colors ${!canGoBack ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500'}`}
+            className={`hover:bg-gray-200 hover:text-white transition-colors ${!canGoBack ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500'}`}
             title="Back"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +95,7 @@ const FolderView = ({
           <button 
             onClick={navigateForward}
             disabled={!canGoForward}
-            className={`p-1 rounded-full hover:bg-gray-200 transition-colors ${!canGoForward ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500'}`}
+            className={`hover:bg-gray-200 hover:text-white transition-colors ${!canGoForward ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500'}`}
             title="Forward"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
