@@ -7,8 +7,12 @@ const FolderView = ({
   folders, 
   files, 
   activeFile,
-  navigateToFolder, 
-  navigateUp, 
+  navigateToFolder,
+  navigateUp,
+  navigateBack,
+  navigateForward,
+  canGoBack,
+  canGoForward,
   onFileSelect, 
   onFileRemove,
   onFileUpload
@@ -26,6 +30,11 @@ const FolderView = ({
       data: file 
     }))
   ];
+
+  // Parse path for breadcrumb navigation
+  const pathSegments = currentPath.split('/').filter(Boolean);
+  
+  // This function is handled by the parent component
 
   // Handle drag and drop
   useEffect(() => {
@@ -68,24 +77,36 @@ const FolderView = ({
 
   return (
     <div ref={dropAreaRef} className="h-full transition-colors rounded-lg">
-      {/* Path Navigation */}
-      <div className="flex items-center mb-3 bg-gray-50 p-2 rounded">
-        <button 
-          onClick={navigateUp}
-          disabled={currentPath === '/'}
-          className={`mr-2 text-gray-500 ${currentPath === '/' ? 'opacity-50 cursor-not-allowed' : 'hover:text-gray-700'}`}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="text-sm font-mono truncate">
-          {currentPath === '/' ? 'Root' : currentPath}
+      {/* Apple-style Path Navigation */}
+      <div className="flex items-center mb-3 bg-gray-50 p-2 rounded shadow-sm">
+        {/* Back/Forward Navigation */}
+        <div className="flex space-x-1 mr-3 border-r pr-3">
+          <button 
+            onClick={navigateBack}
+            disabled={!canGoBack}
+            className={`p-1 rounded-full hover:bg-gray-200 transition-colors ${!canGoBack ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500'}`}
+            title="Back"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          
+          <button 
+            onClick={navigateForward}
+            disabled={!canGoForward}
+            className={`p-1 rounded-full hover:bg-gray-200 transition-colors ${!canGoForward ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500'}`}
+            title="Forward"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
       </div>
       
       {/* Unified list of folders and files */}
-      <div className="">
+      <div className="px-1">
         {items.length > 0 ? (
           items.map((item, index) => (
             <div key={item.type === 'folder' ? `folder-${item.data.name}` : `file-${item.data.id}`}>

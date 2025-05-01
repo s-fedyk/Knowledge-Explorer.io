@@ -11,6 +11,8 @@ const FileSystem = ({
 }) => {
   const fileInputRef = useRef(null);
   const [currentPath, setCurrentPath] = useState('/');
+  const [navigationHistory, setNavigationHistory] = useState(['/']);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const [isFilesystemActive, setIsFilesystemActive] = useState(files && Object.keys(files).length > 0);
 
   useEffect(() => {
@@ -57,7 +59,7 @@ const FileSystem = ({
         current = current.items[part];
       } else {
         // Invalid path, reset to root
-        setCurrentPath('/');
+        navigateToPath('/');
         return { folders: [], files: [] };
       }
     }
@@ -79,20 +81,57 @@ const FileSystem = ({
     return { folders, files: filesInFolder };
   };
 
+  // Navigate to path with history tracking
+  const navigateToPath = (newPath) => {
+    // Don't add to history if it's the same path
+    if (newPath === currentPath) return;
+    
+    // If we're not at the end of history, truncate the future history
+    const newHistory = navigationHistory.slice(0, historyIndex + 1);
+    
+    // Add new path to history
+    newHistory.push(newPath);
+    
+    // Update state
+    setCurrentPath(newPath);
+    setNavigationHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
   // Navigate to folder
   const navigateToFolder = (folderName) => {
     const newPath = currentPath === '/' 
       ? `/${folderName}` 
       : `${currentPath}${currentPath.endsWith('/') ? '' : '/'}${folderName}`;
-    setCurrentPath(newPath);
+    
+    navigateToPath(newPath);
   };
 
   // Navigate up one level
   const navigateUp = () => {
+    if (currentPath === '/') return;
+    
     const pathParts = currentPath.split('/').filter(Boolean);
     if (pathParts.length > 0) {
       pathParts.pop();
-      setCurrentPath(pathParts.length === 0 ? '/' : `/${pathParts.join('/')}/`);
+      const newPath = pathParts.length === 0 ? '/' : `/${pathParts.join('/')}/`;
+      navigateToPath(newPath);
+    }
+  };
+
+  // Navigate back in history
+  const navigateBack = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setCurrentPath(navigationHistory[historyIndex - 1]);
+    }
+  };
+
+  // Navigate forward in history
+  const navigateForward = () => {
+    if (historyIndex < navigationHistory.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setCurrentPath(navigationHistory[historyIndex + 1]);
     }
   };
 
@@ -140,9 +179,13 @@ const FileSystem = ({
         activeFile={activeFile}
         navigateToFolder={navigateToFolder}
         navigateUp={navigateUp}
+        navigateBack={navigateBack}
+        navigateForward={navigateForward}
+        canGoBack={historyIndex > 0}
+        canGoForward={historyIndex < navigationHistory.length - 1}
         onFileSelect={onFileSelect}
         onFileRemove={onFileRemove}
-        onFileUpload={onFileUpload}
+        onFileUpload={handleFileUpload}
       />
     </div>
   );
