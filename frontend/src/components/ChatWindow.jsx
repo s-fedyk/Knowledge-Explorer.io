@@ -35,10 +35,7 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
     <div className="flex-grow flex flex-col">
       {/* Chat Header */}
       <div className="bg-white p-4 shadow-sm">
-        <h1 className="text-black text-xl font-bold">Document Chatbot</h1>
-        <p className="text-sm text-gray-500">
-          Chat with your documents using RAG
-        </p>
+        <h1 className="text-black text-xl font-bold">Knowledge Explorer</h1>
       </div>
       
       {/* Messages */}
@@ -83,24 +80,18 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
       </div>
       
       {/* Input Area - Improved with no margins/borders between input and button */}
-      <div className="bg-white p-4 shadow-inner">
-        <div className="flex text-black">
+      <div className="bg-white shadow-inner">
+        <div className="flex">
+          <div className="flex w-full p-4">
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Ask a question about your documents..."
-            className="flex-grow p-2 border border-r-0 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-grow text-gray-900 shadow-sm p-2 border placeholder-gray-400 border-gray-300 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent rounded-xl transition duration-150 ease-in-out"
           />
-          <button
-            onClick={handleSendMessage}
-            className="bg-blue-500 text-white px-3 rounded-r hover:bg-blue-600 flex items-center justify-center"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-          </button>
+          </div>
         </div>
       </div>
     </div>
