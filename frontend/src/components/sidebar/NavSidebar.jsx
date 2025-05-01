@@ -1,6 +1,6 @@
 import React from 'react';
 import ChatHistorySelector from './ChatHistorySelector';
-import FileSystem from './FileSystem';
+import FileSystem from './filesystem/FileSystem';
 
 
 function NavSidebar({
@@ -15,8 +15,7 @@ function NavSidebar({
   onFileRemove
 }) {
   return (
-    <div className="w-64 h-screen bg-white shadow-md flex flex-col">
-      
+    <div className="w-64 h-screen bg-white shadow-md flex flex-col border-b border-gray-200">
       {/* Chats: 2/3 of sidebar */}
       <div className="basis-1/2 overflow-y-auto border-b border-gray-200">
         <ChatHistorySelector

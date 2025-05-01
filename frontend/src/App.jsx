@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './App.css';
 import ChatWindow from './components/ChatWindow';
-import NavSidebar from './components/NavSidebar';
+import NavSidebar from './components/sidebar/NavSidebar';
 
 // Simple RAG implementation for demonstration
 const useRAG = () => {

@@ -34,9 +34,6 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
   return (
     <div className="flex-grow flex flex-col">
       {/* Chat Header */}
-      <div className="bg-white p-4 shadow-sm">
-        <h1 className="text-black text-xl font-bold">Knowledge Explorer</h1>
-      </div>
       
       {/* Messages */}
       <div className="flex-grow p-4 overflow-y-auto bg-gray-50">
