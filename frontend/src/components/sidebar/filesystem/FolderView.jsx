@@ -1,13 +1,11 @@
 import React, { useRef, useEffect } from "react";
 import FolderItem from "./items/FolderItem";
 import FileItem from "./items/FileItem";
-import "./Node";
 
 const FolderView = ({
   currentPath,
   folders,
   directory,
-  files,
   activeFile,
   navigateToFolder,
   navigateUp,
@@ -20,21 +18,6 @@ const FolderView = ({
   onFileUpload,
 }) => {
   const dropAreaRef = useRef(null);
-
-  // Create a unified list of items (folders first, then files)
-  const items = [
-    ...folders.map((folder) => ({
-      type: "folder",
-      data: folder,
-    })),
-    ...files.map((file) => ({
-      type: "file",
-      data: file,
-    })),
-  ];
-
-  // Parse path for breadcrumb navigation
-  const pathSegments = currentPath.split("/").filter(Boolean);
 
   // This function is handled by the parent component
 
@@ -129,8 +112,8 @@ const FolderView = ({
 
       {/* Unified list of folders and files */}
       <div className="px-1">
-        {directory.children.length > 0 ? (
-          directory.children.map((item, index) => (
+        {Object.keys(directory.children).length > 0 ? (
+          Object.values(directory.children).map((item) => (
             <div
               key={
                 item.type === "folder"

@@ -1,7 +1,20 @@
 import React from "react";
+import type { File } from "../../../../types/filesystem/Node";
 
-const FileItem = ({ file, isActive, onSelect, onRemove }) => {
-  const { mimeType, name, size, id } = file;
+export interface FileItemProps {
+  file: File;
+  isActive?: boolean;
+  onSelect: (id: string) => void;
+  onRemove?: (id: string) => void;
+}
+
+const FileItem: React.FC<FileItemProps> = ({
+  file,
+  isActive = false,
+  onSelect,
+  onRemove,
+}) => {
+  const { id, name, size, mimeType } = file;
   const [type, subtype] = mimeType.split("/");
 
   const isPDF = mimeType === "application/pdf";
@@ -27,7 +40,7 @@ const FileItem = ({ file, isActive, onSelect, onRemove }) => {
     (type === "application" && codeSubtypes.includes(subtype)) ||
     (type === "text" && codeSubtypes.includes(subtype));
 
-  const getFileIcon = () => {
+  const getFileIcon = (): JSX.Element => {
     if (isPDF) {
       return (
         <svg
@@ -120,7 +133,7 @@ const FileItem = ({ file, isActive, onSelect, onRemove }) => {
     );
   };
 
-  const getFileColor = () => {
+  const getFileColor = (): string => {
     if (isPDF) return "text-red-500 bg-red-50 group-hover:bg-red-100";
     if (isImage)
       return "text-purple-500 bg-purple-50 group-hover:bg-purple-100";
@@ -151,6 +164,7 @@ const FileItem = ({ file, isActive, onSelect, onRemove }) => {
         <button
           className="ml-2 p-1 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 rounded-full hover:bg-red-50 transition-all"
           onClick={(e) => {
+            console.log("should remove");
             e.stopPropagation();
             onRemove(id);
           }}

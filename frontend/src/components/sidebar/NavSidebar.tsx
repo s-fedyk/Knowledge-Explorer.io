@@ -1,7 +1,6 @@
-import React from 'react';
-import ChatHistorySelector from './ChatHistorySelector';
-import FileSystem from './filesystem/FileSystem';
-
+import React from "react";
+import ChatHistorySelector from "./ChatHistorySelector";
+import FileSystem from "./filesystem/FileSystem";
 
 function NavSidebar({
   chatHistories,
@@ -13,7 +12,7 @@ function NavSidebar({
   activeFile,
   onFileSelect,
   onFileUpload,
-  onFileRemove
+  onFileRemove,
 }) {
   return (
     <div className="w-64 h-screen bg-white shadow-md flex flex-col border-b border-gray-200">
@@ -26,12 +25,11 @@ function NavSidebar({
           onCreateNewChat={onCreateNewChat}
         />
       </div>
-      
+
       {/* FileSystem: 1/3 of sidebar */}
       <div className="basis-2/3 overflow-y-auto">
         <FileSystem
           directory={directory}
-          files={files}
           activeFile={activeFile}
           onFileSelect={onFileSelect}
           onFileUpload={onFileUpload}

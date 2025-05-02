@@ -1,7 +1,8 @@
 import { useState } from "react";
 import "./App.css";
-import { NodeType } from "./components/sidebar/filesystem/Node";
-import type { Folder } from "./components/sidebar/filesystem/Node";
+import { NodeType } from "./types/filesystem/Node";
+import type { Folder } from "./types/filesystem/Node";
+import { nanoid } from "nanoid";
 
 import ChatWindow from "./components/ChatWindow";
 import NavSidebar from "./components/sidebar/NavSidebar";
@@ -89,7 +90,7 @@ function App() {
     id: "root",
     name: "/",
     type: NodeType.Folder,
-    children: [],
+    children: {} as Record<string, Node>,
   });
   const [activeFile, setActiveFile] = useState(null);
   const [chatHistories, setChatHistories] = useState([
@@ -104,11 +105,10 @@ function App() {
   const processFiles = async (uploadedFiles) => {
     const newFileNodes: File[] = await Promise.all(
       Array.from(uploadedFiles).map(async (file) => {
-        const fileId = `${Date.now()}-${file.name}`;
         const content = await readFileContent(file);
 
         return {
-          id: fileId,
+          id: nanoid(),
           name: file.name,
           type: NodeType.File,
           size: file.size,
@@ -120,28 +120,13 @@ function App() {
 
     const updatedDirectory: Folder = {
       ...directory,
-      children: [...directory.children, ...newFileNodes],
     };
+
+    newFileNodes.forEach((element: File) => {
+      updatedDirectory.children[element.id] = element;
+    });
+
     setDirectory(updatedDirectory);
-
-    for (const file of uploadedFiles) {
-      const fileId = Date.now() + "-" + file.name;
-
-      // Read file content
-      const content = await readFileContent(file);
-
-      // Add to files state
-      setFiles((prev) => ({
-        ...prev,
-        [fileId]: { name: file.name, content },
-      }));
-
-      // Add to RAG system
-      addDocument(fileId, content, file.name);
-
-      // Add system message
-      addMessage("system", `File uploaded: ${file.name}`);
-    }
   };
 
   const readFileContent = (file) => {
@@ -153,19 +138,13 @@ function App() {
   };
 
   const removeFile = (fileId) => {
-    setFiles((prev) => {
-      const newFiles = { ...prev };
-      delete newFiles[fileId];
-      return newFiles;
-    });
+    const updatedDirectory: Folder = {
+      ...directory,
+    };
 
-    // Remove from RAG
-    removeDocument(fileId);
+    delete updatedDirectory.children[fileId];
+    setDirectory(updatedDirectory);
 
-    // Add system message
-    addMessage("system", `File removed: ${files[fileId].name}`);
-
-    // Clear active file if it was the one removed
     if (activeFile === fileId) {
       setActiveFile(null);
     }
