@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./data:/app/data
+      - ./vectorstore:/app/vectorstore
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ENV=development
+    restart: unless-stopped
+
+  # Optional: Add a vector database like Weaviate or Qdrant
+  # For this example, we'll use Weaviate
+  weaviate:
+    image: semitechnologies/weaviate:1.20.5
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+
+volumes:
+  weaviate_data:
