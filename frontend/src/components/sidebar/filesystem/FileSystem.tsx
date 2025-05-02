@@ -2,13 +2,14 @@ import React, { useRef, useState, useEffect } from 'react';
 import EmptyState from './EmptyState';
 import FolderView from './FolderView';
 
-const FileSystem = ({ 
+function FileSystem({ 
   files = {}, 
+  directory={},
   activeFile, 
   onFileSelect, 
   onFileUpload, 
   onFileRemove 
-}) => {
+}) {
   const fileInputRef = useRef(null);
   const [currentPath, setCurrentPath] = useState('/');
   const [navigationHistory, setNavigationHistory] = useState(['/']);
@@ -148,7 +149,7 @@ const FileSystem = ({
   };
 
   // Empty State / Upload UI
-  if (!isFilesystemActive) {
+  if (directory.children.length <= 0) {
     return <EmptyState onFileUpload={(files) => handleFileUpload(files, '/')} />;
   }
 
@@ -175,6 +176,7 @@ const FileSystem = ({
       <FolderView 
         currentPath={currentPath}
         folders={folders}
+        directory={directory}
         files={filesInCurrentFolder}
         activeFile={activeFile}
         navigateToFolder={navigateToFolder}

@@ -9,6 +9,7 @@ function NavSidebar({
   onSelectChatHistory,
   onCreateNewChat,
   files,
+  directory,
   activeFile,
   onFileSelect,
   onFileUpload,
@@ -29,6 +30,7 @@ function NavSidebar({
       {/* FileSystem: 1/3 of sidebar */}
       <div className="basis-2/3 overflow-y-auto">
         <FileSystem
+          directory={directory}
           files={files}
           activeFile={activeFile}
           onFileSelect={onFileSelect}
