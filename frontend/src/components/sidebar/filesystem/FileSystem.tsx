@@ -15,7 +15,6 @@ function FileSystem({
   const [navigationHistory, setNavigationHistory] = useState(["/"]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
-  // Handle file upload with optional target path
   const handleFileUpload = (files, targetPath = currentPath) => {
     if (files && files.length > 0) {
       onFileUpload(files, targetPath);
@@ -27,15 +26,8 @@ function FileSystem({
     }
   };
 
-  // Empty State / Upload UI
-  if (Object.keys(directory.children).length <= 0) {
-    return (
-      <EmptyState onFileUpload={(files) => handleFileUpload(files, "/")} />
-    );
-  }
-
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="h-full">
       <input
         type="file"
         ref={fileInputRef}
@@ -49,7 +41,45 @@ function FileSystem({
         webkitdirectory="true"
         directory="true"
       />
+      <div className="flex text-gray-200">
+        <button
+          className={`hover:bg-gray-200 hover:text-white transition-colors `}
+          title="Back"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </button>
 
+        <button
+          className={`hover:bg-gray-200 hover:text-white transition-colors`}
+          title="Forward"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
+      </div>
       <FolderView
         currentPath={currentPath}
         directory={directory}

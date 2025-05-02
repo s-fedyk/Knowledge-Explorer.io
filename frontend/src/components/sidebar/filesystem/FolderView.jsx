@@ -1,5 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import FolderItem from "./items/FolderItem";
+import EmptyState from "./EmptyState";
+
 import FileItem from "./items/FileItem";
 
 const FolderView = ({
@@ -61,84 +63,35 @@ const FolderView = ({
   }, [onFileUpload, currentPath]);
 
   return (
-    <div ref={dropAreaRef} className="h-full transition-colors rounded-lg">
+    <div ref={dropAreaRef} className="transition-colors rounded-lg h-full">
       {/* Apple-style Path Navigation */}
       <div className="flex items-center bg-white border-b border-gray-300 rounded">
         {/* Back/Forward Navigation */}
-        <div className="flex ">
-          <button
-            onClick={navigateBack}
-            disabled={!canGoBack}
-            className={`hover:bg-gray-200 hover:text-white transition-colors ${!canGoBack ? "text-gray-300 cursor-not-allowed" : "text-gray-500"}`}
-            title="Back"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-
-          <button
-            onClick={navigateForward}
-            disabled={!canGoForward}
-            className={`hover:bg-gray-200 hover:text-white transition-colors ${!canGoForward ? "text-gray-300 cursor-not-allowed" : "text-gray-500"}`}
-            title="Forward"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-        </div>
       </div>
 
       {/* Unified list of folders and files */}
-      <div className="px-1">
-        {Object.keys(directory.children).length > 0 ? (
-          Object.values(directory.children).map((item) => (
-            <div
-              key={
-                item.type === "folder"
-                  ? `folder-${item.name}`
-                  : `file-${item.id}`
-              }
-            >
-              {item.type === "folder" ? (
-                <FolderItem folder={item} navigateToFolder={navigateToFolder} />
-              ) : (
-                <FileItem
-                  file={item}
-                  isActive={activeFile === item.id}
-                  onSelect={onFileSelect}
-                  onRemove={onFileRemove}
-                />
-              )}
-            </div>
-          ))
-        ) : (
-          <div className="text-gray-500 text-center italic text-sm p-4">
-            This folder is empty
+      {Object.keys(directory.children).length > 0 ? (
+        Object.values(directory.children).map((item) => (
+          <div
+            key={
+              item.type === "folder" ? `folder-${item.name}` : `file-${item.id}`
+            }
+          >
+            {item.type === "folder" ? (
+              <FolderItem folder={item} navigateToFolder={navigateToFolder} />
+            ) : (
+              <FileItem
+                file={item}
+                isActive={activeFile === item.id}
+                onSelect={onFileSelect}
+                onRemove={onFileRemove}
+              />
+            )}
           </div>
-        )}
-      </div>
+        ))
+      ) : (
+        <EmptyState onFileUpload={(files) => onFileUpload(files, "/")} />
+      )}
 
       {/* Drop indicator - only visible when dragging */}
       <div

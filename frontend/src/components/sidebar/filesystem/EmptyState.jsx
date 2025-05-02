@@ -57,10 +57,9 @@ const EmptyState = ({ onFileUpload }) => {
 
   return (
     <div className="h-full">
-      {/* Static Image for Drag & Drop */}
       <div
         ref={dropAreaRef}
-        className="rounded-lg p-6 text-center transition-colors flex flex-col items-center justify-center hover:bg-blue-50 h-full w-full"
+        className="rounded-lg p-6 text-center transition-colors flex flex-col items-center justify-center hover:bg-blue-50 h-full"
       >
         <div className="mb-4">
           <svg

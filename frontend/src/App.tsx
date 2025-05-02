@@ -7,11 +7,9 @@ import { nanoid } from "nanoid";
 import ChatWindow from "./components/ChatWindow";
 import NavSidebar from "./components/sidebar/NavSidebar";
 
-// Simple RAG implementation for demonstration
 const useRAG = () => {
   const [documents, setDocuments] = useState({});
 
-  // Add a document to the knowledge base
   const addDocument = (id, content, filename) => {
     setDocuments((prev) => ({
       ...prev,
@@ -19,7 +17,6 @@ const useRAG = () => {
     }));
   };
 
-  // Remove a document from the knowledge base
   const removeDocument = (id) => {
     setDocuments((prev) => {
       const newDocs = { ...prev };
@@ -28,22 +25,18 @@ const useRAG = () => {
     });
   };
 
-  // Simple search function (in a real app, you'd use vector embeddings)
   const search = (query) => {
     const results = [];
 
-    // Very basic search implementation
     Object.entries(documents).forEach(([id, doc]) => {
       const content = doc.content.toLowerCase();
       const queryTerms = query.toLowerCase().split(" ");
 
-      // Check if any query terms exist in the document
       const relevance =
         queryTerms.filter((term) => content.includes(term)).length /
         queryTerms.length;
 
       if (relevance > 0) {
-        // Find a snippet around the first matching term
         const firstMatch = queryTerms.find((term) => content.includes(term));
         if (firstMatch) {
           const matchIndex = content.indexOf(firstMatch);
@@ -61,11 +54,9 @@ const useRAG = () => {
       }
     });
 
-    // Sort by relevance
     return results.sort((a, b) => b.relevance - a.relevance);
   };
 
-  // Generate a response based on the query and documents
   const generateResponse = (query) => {
     const results = search(query);
 
@@ -73,8 +64,6 @@ const useRAG = () => {
       return "I couldn't find any relevant information in your documents to answer that question.";
     }
 
-    // In a real RAG system, you would send the query and relevant document snippets
-    // to an LLM API (like OpenAI) to generate a coherent response
     const topResult = results[0];
 
     return `Based on the document "${topResult.filename}", I found this relevant information: ${topResult.snippet}`;
