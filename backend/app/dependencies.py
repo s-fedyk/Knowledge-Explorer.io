@@ -1,36 +1,51 @@
 import os
-import weaviate
 from functools import lru_cache
 from typing import Dict, Any, Optional
+from neo4j import GraphDatabase
 
 from llama_index.core import ServiceContext, VectorStoreIndex, StorageContext
-from llama_index.vector_stores.weaviate import WeaviateVectorStore
+from llama_index.vector_stores.neo4jvector import Neo4jVectorStore
 from llama_index.llms.openai import OpenAI
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.embeddings import OpenAIEmbedding
+from llama_index.embeddings.openai import OpenAIEmbedding
 
 from app.config import settings
 
 
 @lru_cache
-def get_weaviate_client():
-    """Get or create a Weaviate client."""
+def get_neo4j_driver():
+    """Get or create a Neo4j driver."""
     try:
-        client = weaviate.Client(url=settings.weaviate_url)
-        return client
+        driver = GraphDatabase.driver(
+            settings.neo4j_uri,
+            auth=(settings.neo4j_username, settings.neo4j_password)
+        )
+        # Test the connection
+        with driver.session(database=settings.neo4j_database) as session:
+            result = session.run("RETURN 1")
+            result.single()
+        return driver
     except Exception as e:
-        raise ConnectionError(f"Failed to connect to Weaviate: {e}")
+        raise ConnectionError(f"Failed to connect to Neo4j: {e}")
 
 
 @lru_cache
 def get_vector_store():
-    """Get or create a vector store."""
-    client = get_weaviate_client()
-    vector_store = WeaviateVectorStore(
-        weaviate_client=client,
-        index_name="RAGDocuments",
-        text_key="content"
+    """Get or create a Neo4j vector store."""
+    driver = get_neo4j_driver()
+
+    # Create Neo4j vector store
+    vector_store = Neo4jVectorStore(
+        driver=driver,
+        database=settings.neo4j_database,
+        index_name="ragdocuments",
+        node_label="Document",
+        text_node_property="text",
+        embedding_node_property="embedding",
+        metadata_node_property="metadata",
+        embedding_dimension=1536  # Default for OpenAI ada-002
     )
+
     return vector_store
 
 
@@ -78,12 +93,19 @@ def get_rag_engine():
         storage_context = StorageContext.from_defaults(
             vector_store=vector_store)
 
-        # Create the index
-        index = VectorStoreIndex.from_vector_store(
-            vector_store,
-            service_context=service_context,
-            storage_context=storage_context
-        )
+        # Check if the index exists and has documents
+        try:
+            # Create the index from existing vector store
+            index = VectorStoreIndex.from_vector_store(
+                vector_store,
+                service_context=service_context,
+                storage_context=storage_context
+            )
+        except Exception as e:
+            # If no documents exist yet, create an empty index
+            print(f"No existing documents found: {e}")
+            index = VectorStoreIndex(
+                [], service_context=service_context, storage_context=storage_context)
 
         return index
     except Exception as e:

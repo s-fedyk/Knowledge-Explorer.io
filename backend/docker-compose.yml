@@ -12,23 +12,33 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ENV=development
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j
+      - NEO4J_PASSWORD=password
     restart: unless-stopped
+    depends_on:
+      - neo4j
 
-  # Optional: Add a vector database like Weaviate or Qdrant
-  # For this example, we'll use Weaviate
-  weaviate:
-    image: semitechnologies/weaviate:1.20.5
+  # Neo4j database
+  neo4j:
+    image: neo4j:5.9.0
     ports:
-      - "8080:8080"
-    restart: unless-stopped
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
     environment:
-      QUERY_DEFAULTS_LIMIT: 25
-      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
-      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
-      DEFAULT_VECTORIZER_MODULE: 'none'
-      ENABLE_MODULES: ''
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+      - NEO4J_PLUGINS=["apoc"]
     volumes:
-      - weaviate_data:/var/lib/weaviate
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
 
 volumes:
-  weaviate_data:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  neo4j_plugins:

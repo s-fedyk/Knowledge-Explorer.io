@@ -1,7 +1,8 @@
 import os
 from typing import Optional
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -17,8 +18,11 @@ class Settings(BaseSettings):
     # LLM model to use
     llm_model: str = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
 
-    # Weaviate configuration
-    weaviate_url: str = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
+    # Neo4j configuration
+    neo4j_uri: str = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+    neo4j_username: str = os.getenv("NEO4J_USERNAME", "neo4j")
+    neo4j_password: str = os.getenv("NEO4J_PASSWORD", "password")
+    neo4j_database: str = os.getenv("NEO4J_DATABASE", "neo4j")
 
     # Base paths
     data_path: str = os.getenv("DATA_PATH", "./data/documents")
@@ -27,12 +31,6 @@ class Settings(BaseSettings):
     # Index settings
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1024"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "20"))
-
-    # Environment
-    env: str = os.getenv("ENV", "development")
-
-    class Config:
-        env_file = ".env"
 
 
 settings = Settings()
