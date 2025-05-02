@@ -36,6 +36,7 @@ const FileItem: React.FC<FileItemProps> = ({
     "html",
     "css",
   ];
+
   const isCode =
     (type === "application" && codeSubtypes.includes(subtype)) ||
     (type === "text" && codeSubtypes.includes(subtype));
@@ -134,12 +135,11 @@ const FileItem: React.FC<FileItemProps> = ({
   };
 
   const getFileColor = (): string => {
-    if (isPDF) return "text-red-500 bg-red-50 group-hover:bg-red-100";
-    if (isImage)
-      return "text-purple-500 bg-purple-50 group-hover:bg-purple-100";
-    if (isText) return "text-blue-500 bg-blue-50 group-hover:bg-blue-100";
-    if (isCode) return "text-green-500 bg-green-50 group-hover:bg-green-100";
-    return "text-gray-500 bg-gray-50 group-hover:bg-gray-100";
+    if (isPDF) return "text-red-500";
+    if (isImage) return "text-purple-500";
+    if (isText) return "text-blue-500";
+    if (isCode) return "text-green-500 ";
+    return "text-gray-500";
   };
 
   return (
@@ -154,37 +154,34 @@ const FileItem: React.FC<FileItemProps> = ({
       >
         {getFileIcon()}
       </div>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="text-sm font-medium text-gray-700 truncate">{name}</div>
         <div className="text-xs text-gray-400 truncate">
           {size != null ? `${(size / 1024).toFixed(1)} KB` : ""}
         </div>
       </div>
-      {onRemove && (
-        <button
-          className="ml-2 p-1 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 rounded-full hover:bg-red-50 transition-all"
-          onClick={(e) => {
-            console.log("should remove");
-            e.stopPropagation();
-            onRemove(id);
-          }}
-          title="Remove"
+      <button
+        className="ml-2 p-1 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 rounded-full transition-all"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(id);
+        }}
+        title="Remove"
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
-        </button>
-      )}
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+          />
+        </svg>
+      </button>
     </div>
   );
 };
