@@ -7,9 +7,8 @@ function ChatHistorySelector({
   onCreateNewChat,
 }) {
   return (
-    <div className="flex flex-col h-full p-4">
-      {/* Header stays fixed */}
-      <div className="flex justify-between items-center p-2 mb-4 border-b border-gray-200">
+    <div className="flex flex-col h-full">
+      <div className="flex justify-between items-center p-2 border-b border-gray-400">
         <h2 className="text-black text-lg font-bold">Chats</h2>
         <button
           onClick={onCreateNewChat}
@@ -20,16 +19,15 @@ function ChatHistorySelector({
         </button>
       </div>
 
-      {/* List takes remaining space and scrolls */}
       <div className="flex-1 overflow-y-auto">
-        <ul className="space-y-1">
+        <ul className="">
           {chatHistories.map((history) => (
             <li
               key={history.id}
               className={`text-black p-2 flex justify-between items-center rounded cursor-pointer ${
                 activeChatHistory === history.id
                   ? "bg-blue-100"
-                  : "hover:bg-gray-100"
+                  : "hover:bg-blue-50"
               }`}
               onClick={() => onSelectChatHistory(history.id)}
             >

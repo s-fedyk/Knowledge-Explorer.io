@@ -32,11 +32,9 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
   };
 
   return (
-    <div className="flex-grow flex flex-col">
-      {/* Chat Header */}
-
-      {/* Messages */}
-      <div className="flex-grow p-4 overflow-y-auto bg-gray-50">
+    <div className="h-full w-full flex flex-col bg-gray-100 overflow-hidden">
+      {/* Messages area with controlled overflow */}
+      <div className="flex-grow overflow-y-auto p-4">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-400">
             <div className="text-center">
@@ -86,19 +84,17 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
         )}
       </div>
 
-      {/* Input Area - Improved with no margins/borders between input and button */}
-      <div className="bg-white shadow-inner">
-        <div className="flex">
-          <div className="flex w-full p-4">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask a question about your documents..."
-              className="flex-grow text-gray-900 shadow-sm p-2 border placeholder-gray-400 border-gray-300 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent rounded-xl transition duration-150 ease-in-out"
-            />
-          </div>
+      {/* Input area - fixed at bottom */}
+      <div className="bg-gray-100 border-t border-gray-200 p-4">
+        <div className="flex w-full">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask a question about your documents..."
+            className="flex-grow text-gray-900 shadow-sm p-2 border placeholder-gray-400 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition duration-150 ease-in-out bg-white"
+          />
         </div>
       </div>
     </div>

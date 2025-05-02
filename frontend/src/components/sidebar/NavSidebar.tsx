@@ -15,8 +15,8 @@ function NavSidebar({
   onFileRemove,
 }) {
   return (
-    <div className="w-64 h-screen bg-white shadow-md flex flex-col border-b border-gray-200">
-      <div className="basis-2/5 overflow-y-auto border-b border-gray-200">
+    <div className="w-64 h-screen bg-white shadow-md flex flex-col border-r border-gray-300">
+      <div className="basis-2/5 overflow-y-auto border-gray-400">
         <ChatHistorySelector
           chatHistories={chatHistories}
           activeChatHistory={activeChatHistory}

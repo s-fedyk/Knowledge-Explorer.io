@@ -41,7 +41,7 @@ function FileSystem({
         webkitdirectory="true"
         directory="true"
       />
-      <div className="flex text-gray-200">
+      <div className="flex text-gray-400 border-b border-t border-gray-400">
         <button
           className={`hover:bg-gray-200 hover:text-white transition-colors `}
           title="Back"
