@@ -47,7 +47,7 @@ class GraphItem(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    answer: List[str]
+    answer: str
     sources: List[SourceItem]
 
 
@@ -107,7 +107,7 @@ async def query_documents(
         )
 
         return {
-            "answer": [str(response), str(pg_resp)],
+            "answer": str(response),
             "sources": sources,
         }
     except Exception as e:

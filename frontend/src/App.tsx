@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import { NodeType } from "./types/filesystem/Node";
 import type { Folder } from "./types/filesystem/Node";
 import { nanoid } from "nanoid";
+import { Client } from "./api/query.ts";
 
 import ChatWindow from "./components/ChatWindow";
 import NavSidebar from "./components/sidebar/NavSidebar";
@@ -143,15 +144,19 @@ function App() {
     setMessages((prev) => [...prev, { sender, text, timestamp: new Date() }]);
   };
 
-  const handleSendMessage = (userMessage) => {
+  const handleSendMessage = async (userMessage) => {
     // Add user message
     addMessage("user", userMessage);
 
+    const queryRequest: QueryRequest = {
+      query: userMessage,
+      similarity_top_k: 3,
+    };
+
+    const response: QueryResponse = await Client.query(queryRequest);
+
     // Generate response with a small delay to simulate processing
-    setTimeout(() => {
-      const response = generateResponse(userMessage);
-      addMessage("bot", response);
-    }, 500);
+    addMessage("bot", response.answer);
   };
 
   // Create new chat history
