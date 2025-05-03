@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
 
     # LLM model to use
-    llm_model: str = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
+    llm_model: str = os.getenv("LLM_MODEL", "gpt-4.1-nano")
 
     # Neo4j configuration
     neo4j_uri: str = os.getenv("NEO4J_URI", "bolt://neo4j:7687")

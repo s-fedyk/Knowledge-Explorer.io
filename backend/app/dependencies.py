@@ -3,11 +3,17 @@ from functools import lru_cache
 from typing import Dict, Any, Optional
 from neo4j import GraphDatabase
 
-from llama_index.core import ServiceContext, VectorStoreIndex, StorageContext
+from llama_index.core import VectorStoreIndex, StorageContext
+
+from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
 from llama_index.vector_stores.neo4jvector import Neo4jVectorStore
 from llama_index.llms.openai import OpenAI
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.openai import OpenAIEmbedding
+
+from llama_index.core import Settings
+from typing import Literal
+from llama_index.core.indices.property_graph import SchemaLLMPathExtractor
 
 from app.config import settings
 
@@ -30,12 +36,47 @@ def get_neo4j_driver():
 
 
 @lru_cache
+def get_graph_store() -> Neo4jPropertyGraphStore:
+    return Neo4jPropertyGraphStore(
+        username=settings.neo4j_username,
+        password=settings.neo4j_password,
+        url=settings.neo4j_uri,
+    )
+
+
+@lru_cache
+def get_kg_extractor():
+    entities = Literal["PERSON", "PLACE", "THING"]
+    relations = Literal["PART_OF", "HAS", "IS_A"]
+    schema = {
+        "PERSON": ["PART_OF", "HAS", "IS_A"],
+        "PLACE": ["PART_OF", "HAS"],
+        "THING": ["IS_A"],
+    }
+
+    kg_extractor = SchemaLLMPathExtractor(
+        llm=Settings.llm,
+        possible_entities=entities,
+        possible_relations=relations,
+        kg_validation_schema=schema,
+        strict=True,  # if false, will allow triplets outside of the schema
+        num_workers=4,
+        max_triplets_per_chunk=10,
+    )
+
+    return kg_extractor
+
+
+@lru_cache
 def get_vector_store():
     """Get or create a Neo4j vector store."""
     driver = get_neo4j_driver()
 
     # Create Neo4j vector store
     vector_store = Neo4jVectorStore(
+        username=settings.neo4j_username,
+        password=settings.neo4j_password,
+        url=settings.neo4j_uri,
         driver=driver,
         database=settings.neo4j_database,
         index_name="ragdocuments",
@@ -49,8 +90,7 @@ def get_vector_store():
     return vector_store
 
 
-@lru_cache
-def get_service_context():
+def init_settings():
     """Create a service context for the RAG pipeline."""
     # Set up the LLM
     llm = OpenAI(
@@ -71,14 +111,11 @@ def get_service_context():
         chunk_overlap=settings.chunk_overlap
     )
 
-    # Create and return the service context
-    service_context = ServiceContext.from_defaults(
-        llm=llm,
-        embed_model=embed_model,
-        node_parser=node_parser
-    )
+    Settings.llm = llm
+    Settings.embed_model = embed_model
+    Settings.node_parser = node_parser
 
-    return service_context
+    return Settings
 
 
 @lru_cache
@@ -87,7 +124,6 @@ def get_rag_engine():
     try:
         # Get vector store and service context
         vector_store = get_vector_store()
-        service_context = get_service_context()
 
         # Create storage context
         storage_context = StorageContext.from_defaults(
@@ -98,14 +134,15 @@ def get_rag_engine():
             # Create the index from existing vector store
             index = VectorStoreIndex.from_vector_store(
                 vector_store,
-                service_context=service_context,
                 storage_context=storage_context
             )
         except Exception as e:
             # If no documents exist yet, create an empty index
             print(f"No existing documents found: {e}")
             index = VectorStoreIndex(
-                [], service_context=service_context, storage_context=storage_context)
+                [],
+                storage_context=storage_context
+            )
 
         return index
     except Exception as e:

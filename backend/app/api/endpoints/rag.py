@@ -1,16 +1,25 @@
 import os
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from neo4j import GraphDatabase
 from pathlib import Path
-
+from fastapi.concurrency import run_in_threadpool
 from llama_index.core import Document
-from llama_index.core import VectorStoreIndex
+from llama_index.core import VectorStoreIndex, StorageContext
+from llama_index.core import Settings
+
+from llama_index.core.indices.property_graph import PropertyGraphIndex
+from llama_index.core import StorageContext
+from llama_index.core.indices.property_graph import (
+    PropertyGraphIndex,
+    TextToCypherRetriever,
+)
 from llama_index.readers.file import PDFReader
-from app.dependencies import get_rag_engine, get_service_context, get_vector_store, get_neo4j_driver
+from app.dependencies import get_rag_engine, get_vector_store, get_neo4j_driver, get_kg_extractor, get_graph_store
 from app.config import settings
+
 
 # Configure logging
 logging.basicConfig(
@@ -27,9 +36,19 @@ class QueryRequest(BaseModel):
     similarity_top_k: int = 3
 
 
+class SourceItem(BaseModel):
+    text: str
+    score: Optional[float]
+    document: str
+
+
+class GraphItem(BaseModel):
+    text: str
+
+
 class QueryResponse(BaseModel):
-    answer: str
-    sources: List[Dict[str, Any]]
+    answer: List[str]
+    sources: List[SourceItem]
 
 
 class UploadResponse(BaseModel):
@@ -40,7 +59,8 @@ class UploadResponse(BaseModel):
 @router.post("/query", response_model=QueryResponse)
 async def query_documents(
     request: QueryRequest,
-    index: VectorStoreIndex = Depends(get_rag_engine)
+    index: VectorStoreIndex = Depends(get_rag_engine),
+    graph_store=Depends(get_graph_store),
 ):
     """
     Query the RAG system with a natural language question
@@ -52,9 +72,7 @@ async def query_documents(
             similarity_top_k=request.similarity_top_k,
             response_mode="compact"
         )
-
         response = query_engine.query(request.query)
-        logger.info("Query executed successfully")
 
         source_nodes = response.source_nodes
         sources = [
@@ -66,9 +84,31 @@ async def query_documents(
             for node in source_nodes
         ]
 
+        storage_ctx = StorageContext.from_defaults(
+            property_graph_store=graph_store
+        )
+        pg_index = PropertyGraphIndex.from_existing(
+            property_graph_store=graph_store,
+            storage_context=storage_ctx,
+        )
+
+        cypher_ret = TextToCypherRetriever(
+            graph_store,
+            llm=Settings.llm,
+        )
+        pg_engine = pg_index.as_query_engine(
+            sub_retrievers=[cypher_ret],
+            include_text=True
+        )
+
+        pg_resp = await run_in_threadpool(
+            pg_engine.query,
+            request.query
+        )
+
         return {
-            "answer": str(response),
-            "sources": sources
+            "answer": [str(response), str(pg_resp)],
+            "sources": sources,
         }
     except Exception as e:
         logger.exception("Error during query execution")
@@ -115,17 +155,35 @@ async def process_document(file_path: str, filename: str):
 
         for doc in documents:
             doc.metadata["filename"] = filename
-        logger.debug("Loaded %d documents from %s", len(documents), filename)
+        logger.info("Loaded %d documents from %s", len(documents), filename)
 
         vector_store = get_vector_store()
-        service_context = get_service_context()
+        graph_store = get_graph_store()
+
+        storage_context = StorageContext.from_defaults(
+            vector_store=vector_store,
+            property_graph_store=graph_store,
+        )
 
         VectorStoreIndex.from_documents(
             documents,
-            service_context=service_context,
-            vector_store=vector_store
+            show_progress=True,
+            storage_context=storage_context
         )
-        logger.info("Index created for %s", filename)
+
+        logger.info("Vector Index created for %s", filename)
+
+        index = await run_in_threadpool(
+            PropertyGraphIndex.from_documents,
+            documents,
+            kg_extractors=[get_kg_extractor()],
+            storage_context=storage_context,
+            show_progress=True,
+            use_async=False,
+        )
+        index.storage_context.persist(persist_dir="./storage")
+
+        logger.info("Property Graph Index created for %s", filename)
 
     except Exception as e:
         logger.exception("Error processing document: %s", filename)
