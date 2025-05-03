@@ -53,11 +53,12 @@ const TabView = ({
 
   // Render tab content based on type
   const renderTabContent = (tab) => {
+    console.log("rending a tab", tab);
     switch (tab.type) {
       default:
         return <ChatWindow {...chatProps} />;
       case "file":
-        return <FileView />;
+        return <FileView file={tab} />;
     }
   };
 

@@ -92,7 +92,13 @@ function App() {
   // Tab management
   const [tabs, setTabs] = useState([
     { id: 1, name: "Chat", type: "chat" },
-    { id: 2, name: "File", type: "file" },
+    {
+      id: 2,
+      name: "File",
+      type: "file",
+      path: require("Users/stanislavfedyk/Downloads/Stan_Fedyk_Resume.pdf")),
+      fileType: "pdf",
+    },
   ]);
 
   const [activeTabId, setActiveTabId] = useState(1);
