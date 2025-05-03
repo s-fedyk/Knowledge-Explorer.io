@@ -11,7 +11,7 @@ const FileView = ({ file }) => {
   const [error, setError] = useState(null);
 
   return (
-    <div className="w-full h-full border-2 border-gray-400 rounded overflow-auto relative">
+    <div className="p-30">
       <FileViewer
         key={file.id}
         fileType={file.fileType}
@@ -22,7 +22,6 @@ const FileView = ({ file }) => {
           setError(e);
           setLoading(false);
         }}
-        // if the lib supports a style prop, uncomment this:
       />
     </div>
   );

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* force the viewer to size itself to its parent */
+.photo-viewer-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.photo {
+  width: 100% !important;
+  height: auto !important;
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

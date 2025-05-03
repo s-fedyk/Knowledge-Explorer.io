@@ -96,8 +96,8 @@ function App() {
       id: 2,
       name: "File",
       type: "file",
-      path: require("Users/stanislavfedyk/Downloads/Stan_Fedyk_Resume.pdf")),
-      fileType: "pdf",
+      path: "http://localhost:8100//ProfessionalC++.pdf",
+      fileType: "png",
     },
   ]);
 

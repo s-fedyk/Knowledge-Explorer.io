@@ -33,3 +33,10 @@
 .read-the-docs {
   color: #888;
 }
+.pg-viewer-wrapper img.photo,
+.pg-viewer img.photo,
+.photo-viewer-container img.photo {
+  width: 100% !important;
+  height: auto !important; /* or 100% if you want to stretch vertically too */
+  object-fit: contain;
+}

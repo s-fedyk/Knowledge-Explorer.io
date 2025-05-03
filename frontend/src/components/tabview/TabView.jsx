@@ -65,7 +65,7 @@ const TabView = ({
   return (
     <div className="h-full w-full flex flex-col bg-gray-200 overflow-hidden">
       {/* Tabs navigation */}
-      <div className="flex bg-white border-b border-gray-200 overflow-x-auto text-lg">
+      <div className="flex flex-none bg-white border-b border-gray-200 overflow-x-auto text-lg">
         {tabs.map((tab) => (
           <div
             key={tab.id}
@@ -104,7 +104,7 @@ const TabView = ({
       </div>
 
       {/* Tab content area */}
-      <div className="flex-grow overflow-hidden">
+      <div className="flex-grow overflow-auto">
         {tabs.map((tab) => (
           <div
             key={tab.id}
