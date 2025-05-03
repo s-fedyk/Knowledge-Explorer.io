@@ -11,7 +11,7 @@ const FileView = ({ file }) => {
   const [error, setError] = useState(null);
 
   return (
-    <div className="p-30">
+    <div className="text-black bg-gray-100">
       <FileViewer
         key={file.id}
         fileType={file.fileType}

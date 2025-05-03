@@ -96,8 +96,8 @@ function App() {
       id: 2,
       name: "File",
       type: "file",
-      path: "http://localhost:8100//ProfessionalC++.pdf",
-      fileType: "png",
+      path: "http://localhost:8100//criticaldialoguesample.docx",
+      fileType: "docx",
     },
   ]);
 
