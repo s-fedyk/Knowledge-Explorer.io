@@ -32,7 +32,7 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
   };
 
   return (
-    <div className="h-full w-full flex flex-col bg-gray-100 overflow-hidden">
+    <div className="h-full flex flex-col bg-gray-100 overflow-hidden">
       {/* Messages area with controlled overflow */}
       <div className="flex-grow overflow-y-auto p-4">
         {messages.length === 0 ? (

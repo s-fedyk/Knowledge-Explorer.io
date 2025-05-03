@@ -5,8 +5,8 @@ import type { Folder } from "./types/filesystem/Node";
 import { nanoid } from "nanoid";
 import { Client } from "./api/query.ts";
 
-import ChatWindow from "./components/ChatWindow";
 import NavSidebar from "./components/sidebar/NavSidebar";
+import TabView from "./components/tabview/TabView";
 
 const useRAG = () => {
   const [documents, setDocuments] = useState({});
@@ -82,13 +82,20 @@ function App() {
     type: NodeType.Folder,
     children: {} as Record<string, Node>,
   });
-  const [activeFile, setActiveFile] = useState(null);
   const [chatHistories, setChatHistories] = useState([
     { id: "1", name: "Research Project" },
     { id: "2", name: "Meeting Notes" },
     { id: "3", name: "Personal Chat" },
   ]);
   const [activeChatHistory, setActiveChatHistory] = useState(null);
+
+  // Tab management
+  const [tabs, setTabs] = useState([
+    { id: 1, name: "Chat", type: "chat" },
+    { id: 2, name: "File", type: "file" },
+  ]);
+
+  const [activeTabId, setActiveTabId] = useState(1);
   const { addDocument, removeDocument, generateResponse } = useRAG();
 
   // Process uploaded files
@@ -96,13 +103,25 @@ function App() {
     const newFileNodes: File[] = await Promise.all(
       Array.from(uploadedFiles).map(async (file) => {
         const content = await readFileContent(file);
+        const fileId = nanoid();
+
+        // Determine file type
+        let fileType = "text";
+        if (file.type === "application/pdf") {
+          fileType = "pdf";
+        }
+
+        // Store file in RAG system
+        addDocument(fileId, content, file.name);
 
         return {
-          id: nanoid(),
+          id: fileId,
           name: file.name,
           type: NodeType.File,
           size: file.size,
           mimeType: file.type,
+          fileType: fileType,
+          content: content,
           parent: directory,
         };
       }),
@@ -123,7 +142,12 @@ function App() {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target.result);
-      reader.readAsText(file);
+
+      if (file.type === "application/pdf") {
+        reader.readAsDataURL(file);
+      } else {
+        reader.readAsText(file);
+      }
     });
   };
 
@@ -135,9 +159,11 @@ function App() {
     delete updatedDirectory.children[fileId];
     setDirectory(updatedDirectory);
 
-    if (activeFile === fileId) {
-      setActiveFile(null);
-    }
+    // Close tab if open
+    closeTab(fileId);
+
+    // Remove from RAG system
+    removeDocument(fileId);
   };
 
   const addMessage = (sender, text) => {
@@ -153,10 +179,78 @@ function App() {
       similarity_top_k: 3,
     };
 
-    const response: QueryResponse = await Client.query(queryRequest);
+    try {
+      const response: QueryResponse = await Client.query(queryRequest);
 
-    // Generate response with a small delay to simulate processing
-    addMessage("bot", response.answer);
+      // Add bot response
+      addMessage("bot", response.answer);
+
+      // Extract and open file references
+      extractReferences(response.answer);
+    } catch (error) {
+      // Fallback response if API call fails
+      addMessage("bot", generateResponse(userMessage));
+    }
+  };
+
+  // Extract file references from bot response
+  const extractReferences = (text) => {
+    // Look for file references in the format "document name"
+    const fileRegex = /"([^"]+)"/g;
+    const matches = [...text.matchAll(fileRegex)];
+
+    matches.forEach((match) => {
+      const filename = match[1];
+      // Find the file by name
+      const fileEntry = Object.values(directory.children).find(
+        (file) => file.name === filename,
+      );
+
+      if (fileEntry) {
+        openFileTab(
+          fileEntry.id,
+          fileEntry.name,
+          fileEntry.fileType,
+          fileEntry.content,
+        );
+      }
+    });
+  };
+
+  // Open a file in a new tab
+  const openFileTab = (fileId, fileName, fileType, content) => {
+    // If tab already exists, just activate it
+    if (tabs.some((tab) => tab.id === fileId)) {
+      setActiveTabId(fileId);
+      return;
+    }
+
+    // Add new tab
+    setTabs((prev) => [
+      ...prev,
+      {
+        id: fileId,
+        name: fileName,
+        type: fileType || "text",
+        content: content,
+      },
+    ]);
+
+    // Switch to the new tab
+    setActiveTabId(fileId);
+  };
+
+  // Close a tab
+  const closeTab = (tabId) => {
+    // Don't allow closing the chat tab
+    if (tabId === "chat") return;
+
+    setTabs((prev) => prev.filter((tab) => tab.id !== tabId));
+
+    // If the active tab is being closed, switch to chat
+    if (activeTabId === tabId) {
+      setActiveTabId("chat");
+    }
   };
 
   // Create new chat history
@@ -175,6 +269,20 @@ function App() {
     setMessages([]);
   };
 
+  // Handle file selection from sidebar
+  const handleFileSelect = (fileId) => {
+    const fileNode = directory.children[fileId];
+    if (fileNode) {
+      // Determine file type based on mime type
+      let fileType = "text";
+      if (fileNode.mimeType === "application/pdf") {
+        fileType = "pdf";
+      }
+
+      openFileTab(fileId, fileNode.name, fileType, fileNode.content);
+    }
+  };
+
   return (
     <div className="flex w-screen h-screen bg-gray-100">
       {/* Navigation Sidebar Component */}
@@ -185,14 +293,23 @@ function App() {
         onCreateNewChat={createNewChatHistory}
         files={files}
         directory={directory}
-        activeFile={activeFile}
-        onFileSelect={setActiveFile}
+        activeFile={activeTabId !== "chat" ? activeTabId : null}
+        onFileSelect={handleFileSelect}
         onFileUpload={processFiles}
         onFileRemove={removeFile}
       />
 
-      {/* Chat Window */}
-      <ChatWindow messages={messages} onSendMessage={handleSendMessage} />
+      {/* TabView with Chat and File tabs */}
+      <TabView
+        tabs={tabs}
+        activeTabId={activeTabId}
+        onTabChange={setActiveTabId}
+        onTabClose={closeTab}
+        chatProps={{
+          messages: messages,
+          onSendMessage: handleSendMessage,
+        }}
+      />
     </div>
   );
 }
