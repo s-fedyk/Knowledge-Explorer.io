@@ -79,26 +79,6 @@ const TabView = ({
             {getTabIcon(tab.type)}
             <span className="truncate border:none">{tab.name}</span>
             {/* Only show close button if not the chat tab */}
-            {tab.type !== "chat" && (
-              <button
-                className="text-gray-400 hover:text-gray-600"
-                onClick={(e) => handleCloseTab(e, tab.id)}
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            )}
           </div>
         ))}
       </div>

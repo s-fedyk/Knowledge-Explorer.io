@@ -8,6 +8,7 @@ function ChatHistorySelector({
 }) {
   return (
     <div className="flex flex-col h-full">
+      {/* Header stays fixed */}
       <div className="flex justify-between items-center p-2 border-b border-gray-400">
         <h2 className="text-black text-lg font-bold">Chats</h2>
         <button
