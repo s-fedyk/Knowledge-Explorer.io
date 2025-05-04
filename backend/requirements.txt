@@ -10,6 +10,7 @@ llama-index-graph-stores-neo4j
 llama-index-embeddings-openai
 llama-index-embeddings-openai
 llama-index-llms-openai
+graspologic
 ragchecker
 neo4j
 python-multipart
@@ -18,3 +19,8 @@ pypdf
 nltk
 sentence-transformers
 tiktoken
+numpy
+scipy
+future
+asyncio
+nest_asyncio

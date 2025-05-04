@@ -3,6 +3,8 @@ from functools import lru_cache
 from typing import Dict, Any, Optional
 from neo4j import GraphDatabase
 
+from app.api.endpoints.GraphRagStore import GraphRAGStore
+
 from llama_index.core import VectorStoreIndex, StorageContext
 
 from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
@@ -36,12 +38,14 @@ def get_neo4j_driver():
 
 
 @lru_cache
-def get_graph_store() -> Neo4jPropertyGraphStore:
-    return Neo4jPropertyGraphStore(
+def get_graph_store() -> GraphRAGStore:
+    store = GraphRAGStore(
         username=settings.neo4j_username,
         password=settings.neo4j_password,
         url=settings.neo4j_uri,
     )
+    store.build_communities()
+    return store
 
 
 @lru_cache
