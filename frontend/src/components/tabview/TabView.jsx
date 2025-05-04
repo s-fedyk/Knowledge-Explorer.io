@@ -1,6 +1,7 @@
 import { useState } from "react";
 import ChatWindow from "./ChatWindow";
 import FileView from "./FileView";
+import GraphView from "./GraphView";
 
 /**
  * TabView component for managing multiple tabs, including chat and file viewers
@@ -53,12 +54,13 @@ const TabView = ({
 
   // Render tab content based on type
   const renderTabContent = (tab) => {
-    console.log("rending a tab", tab);
     switch (tab.type) {
       default:
         return <ChatWindow {...chatProps} />;
       case "file":
         return <FileView file={tab} />;
+      case "graph":
+        return <GraphView nodes={tab.nodes} relations={tab.relations} />;
     }
   };
 
@@ -69,7 +71,7 @@ const TabView = ({
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`px-4 py-2 flex items-center cursor-pointer ${
+            className={`px-4 py-2 flex items-center cursor-pointer border-r border-gray-200 ${
               activeTabId === tab.id
                 ? "bg-gray-100 text-gray-400"
                 : "hover:bg-gray-50 text-gray-400"

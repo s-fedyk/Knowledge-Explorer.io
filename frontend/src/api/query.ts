@@ -5,16 +5,19 @@ import type {
   QueryResponse,
   UploadDocumentRequest,
   UploadDocumentResponse,
+  GraphRequest,
+  GraphNode,
+  GraphRelationship,
+  GraphResponse,
   ApiError,
 } from "../types/api/api";
 
 export const API_BASE_URL = "http://localhost:8000";
-
 export const API_VERSION = "v1";
-
 export const API_ENDPOINTS = {
   QUERY: `${API_BASE_URL}/api/${API_VERSION}/query`,
   UPLOAD: `${API_BASE_URL}/api/${API_VERSION}/upload`,
+  GRAPH: `${API_BASE_URL}/api/${API_VERSION}/graph`,
 };
 
 export class APIClient {
@@ -32,12 +35,10 @@ export class APIClient {
         },
         body: JSON.stringify(queryRequest),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw this.createApiError(errorData, response.status);
       }
-
       return (await response.json()) as QueryResponse;
     } catch (error) {
       if ((error as ApiError).status) {
@@ -64,17 +65,14 @@ export class APIClient {
     try {
       const formData = new FormData();
       formData.append("file", uploadRequest.file);
-
       const response = await fetch(API_ENDPOINTS.UPLOAD, {
         method: "POST",
         body: formData,
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw this.createApiError(errorData, response.status);
       }
-
       return (await response.json()) as UploadDocumentResponse;
     } catch (error) {
       if ((error as ApiError).status) {
@@ -84,6 +82,40 @@ export class APIClient {
         {
           error: "network_error",
           message: `Failed to upload document: ${(error as Error).message}`,
+        },
+        500,
+      );
+    }
+  }
+
+  /**
+   * Get graph data representing relationships between documents or concepts
+   * @param graphRequest The graph request parameters
+   * @returns Promise with the graph response containing nodes and relationships
+   */
+  public async getGraphData(graphRequest: GraphRequest): Promise<GraphResponse> {
+    try {
+      const response = await fetch(API_ENDPOINTS.GRAPH, {
+        method: "GET",
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw this.createApiError(errorData, response.status);
+      }
+      const result = (await response.json()) as GraphResponse;
+      console.log("got", result)
+
+      result.nodes = result.nodes.map(node => ({ id: String(node.id) }));
+
+      return result
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      throw this.createApiError(
+        {
+          error: "network_error",
+          message: `Failed to retrieve graph data: ${(error as Error).message}`,
         },
         500,
       );

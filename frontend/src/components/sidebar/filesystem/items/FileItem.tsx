@@ -144,8 +144,8 @@ const FileItem: React.FC<FileItemProps> = ({
 
   return (
     <div
-      className={`p-2 flex items-center rounded-md cursor-pointer transition-colors group ${
-        isActive ? "bg-blue-100" : "hover:bg-blue-50"
+      className={`p-2 flex items-center cursor-pointer transition-colors group ${
+        isActive ? "bg-gray-100" : "hover:bg-blue-50"
       }`}
       onClick={() => onSelect(id)}
     >

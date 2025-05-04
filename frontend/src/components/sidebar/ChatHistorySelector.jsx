@@ -25,9 +25,9 @@ function ChatHistorySelector({
           {chatHistories.map((history) => (
             <li
               key={history.id}
-              className={`text-black p-2 flex justify-between items-center rounded cursor-pointer ${
+              className={`text-black p-2 flex justify-between items-center cursor-pointer ${
                 activeChatHistory === history.id
-                  ? "bg-blue-100"
+                  ? "bg-gray-100"
                   : "hover:bg-blue-50"
               }`}
               onClick={() => onSelectChatHistory(history.id)}

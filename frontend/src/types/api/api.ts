@@ -1,13 +1,3 @@
-export const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
-
-export const API_VERSION = "v1";
-
-export const API_ENDPOINTS = {
-  QUERY: `${API_BASE_URL}/api/${API_VERSION}/query`,
-  UPLOAD: `${API_BASE_URL}/api/${API_VERSION}/upload`,
-};
-
 export interface QueryRequest {
   query: string;
   similarity_top_k?: number;
@@ -38,4 +28,27 @@ export interface ApiError {
   error: string;
   message: string;
   status: number;
+}
+
+// New interfaces for graph data
+export interface GraphNode {
+  id: string;
+}
+
+export interface GraphRelationship {
+  source: string;
+  target: string;
+  type: string;
+  properties?: Record<string, any>;
+}
+
+export interface GraphRequest {
+  documentIds?: string[];
+  query?: string;
+  limit?: number;
+}
+
+export interface GraphResponse {
+  nodes: GraphNode[];
+  relationships: GraphRelationship[];
 }

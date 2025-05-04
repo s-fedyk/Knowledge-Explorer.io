@@ -101,6 +101,43 @@ function App() {
     },
   ]);
 
+  const testGraphAPI = async () => {
+    try {
+      const documentIds = Object.keys(directory.children);
+      const testGraphResponse = await Client.getGraphData({
+        documentIds,
+        limit: 20,
+      });
+
+      console.log("Test graph API response:", testGraphResponse);
+      addMessage(
+        "system",
+        `Graph data retrieved: ${testGraphResponse.nodes.length} nodes and ${testGraphResponse.relationships.length} relationships`,
+      );
+
+      console.log("here", testGraphResponse.nodes);
+      // build your new "Graph" tab
+      const graphTab = {
+        id: nanoid(), // or whatever unique id you like
+        name: "Graph",
+        type: "graph",
+        nodes: testGraphResponse.nodes,
+        relationships: testGraphResponse.relationships,
+      };
+
+      // append it to the existing array
+      setTabs((prevTabs) => [...prevTabs, graphTab]);
+    } catch (error) {
+      console.error("Test graph API failed:", error);
+      addMessage("system", `Failed to retrieve graph data: ${error.message}`);
+    }
+  };
+
+  useEffect(() => {
+    // Only run this once when the component is mounted
+    testGraphAPI();
+  }, []);
+
   const [activeTabId, setActiveTabId] = useState(1);
   const { addDocument, removeDocument, generateResponse } = useRAG();
 
