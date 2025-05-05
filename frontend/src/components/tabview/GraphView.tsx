@@ -3,7 +3,15 @@ import { InteractiveNvlWrapper } from "@neo4j-nvl/react";
 import type { MouseEventCallbacks } from "@neo4j-nvl/react";
 import React, { useState } from "react";
 
-function GraphView({ nodes, relations }) {
+/*
+ * A graphview gets the base nodes used to answer the query.
+ * It then queries and extracts the exact relationships present.
+ *
+ * TODO: Is this an antipattern? I am trying to follow container:presentational pattern
+ * But re-querying in the container after recieving a result seems redundant almost.
+ */
+
+function GraphView({ nodes }) {
   const mouseEventCallbacks: MouseEventCallbacks = {
     onHover: (
       element: Node | Relationship,
@@ -45,7 +53,6 @@ function GraphView({ nodes, relations }) {
   return (
     <InteractiveNvlWrapper
       nodes={nodes}
-      rels={relations}
       mouseEventCallbacks={mouseEventCallbacks}
       className={"bg-gray-100"}
     />

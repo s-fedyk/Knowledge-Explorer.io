@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from app.dependencies import get_rag_engine
 from app.api.endpoints import rag
+from app.api.endpoints import gql
 
 app = FastAPI(
     title="RAG API",
@@ -20,6 +20,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(rag.router, prefix="/api/v1")
+app.include_router(gql.router, prefix="/graphql")
 
 
 @app.get("/")

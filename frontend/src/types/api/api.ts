@@ -11,7 +11,7 @@ export interface Source {
 
 export interface QueryResponse {
   answer: string;
-  sources: Source[];
+  sources: string[];
 }
 
 export interface UploadDocumentRequest {

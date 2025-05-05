@@ -3,6 +3,7 @@ import ChatWindow from "./ChatWindow";
 import FileView from "./FileView";
 import GraphView from "./GraphView";
 import { Client } from "@api/query.ts";
+import { nanoid } from "nanoid";
 
 /**
  * TabView component for managing multiple tabs, including chat and file viewers
@@ -44,6 +45,15 @@ const TabView = ({ chatID, chatProps = {}, onFileSelect }) => {
     try {
       const response: QueryResponse = await Client.query(queryRequest);
       addMessage("bot", response.answer);
+
+      const graphTab = {
+        id: nanoid(),
+        name: "graph",
+        type: "graph",
+        nodes: response.sources,
+      };
+
+      setTabs((prev) => [...prev, graphTab]);
     } catch (error) {
       addMessage("bot", "API call error, ${error}");
     }
@@ -91,7 +101,7 @@ const TabView = ({ chatID, chatProps = {}, onFileSelect }) => {
       case "file":
         return <FileView file={tab} />;
       case "graph":
-        return <GraphView nodes={tab.nodes} relations={tab.relations} />;
+        return <GraphView nodes={tab.nodes} />;
     }
   };
 

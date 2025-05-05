@@ -4,11 +4,9 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Backgro
 import re
 from llama_index.core.schema import NodeWithScore
 from pydantic import BaseModel
-from neo4j import GraphDatabase
 from pathlib import Path
 import json
 from fastapi.concurrency import run_in_threadpool
-from llama_index.core import Document
 from llama_index.core import VectorStoreIndex, StorageContext
 from llama_index.core import Settings
 
@@ -16,14 +14,9 @@ from llama_index.core.node_parser import SentenceSplitter
 
 from app.api.endpoints.GraphRAGQueryEngine import GraphRAGQueryEngine
 from .GraphRagExtractor import GraphRAGExtractor
-from .GraphRagStore import GraphRAGStore
 
 from llama_index.core.indices.property_graph import PropertyGraphIndex
 from llama_index.core import StorageContext
-from llama_index.core.indices.property_graph import (
-    PropertyGraphIndex,
-    TextToCypherRetriever,
-)
 from llama_index.readers.file import PDFReader
 from app.dependencies import get_rag_engine, get_vector_store, get_neo4j_driver, get_kg_extractor, get_graph_store
 from app.logger import logger
@@ -193,7 +186,7 @@ async def query_documents(
         )
 
         def to_node_id(node: NodeWithScore):
-            return node.id_
+            return node.node_id
 
         sources = list(map(to_node_id, resp.source_nodes))
 
