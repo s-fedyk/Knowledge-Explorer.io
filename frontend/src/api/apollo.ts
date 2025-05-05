@@ -19,7 +19,6 @@ export const client = new ApolloClient({
 
 export interface Node {
   id: string;
-  identity: string;
 }
 
 export interface Relationship {
@@ -47,7 +46,6 @@ export const NODES_WITH_RELATIONS_QUERY = gql`
     nodesWithRelations(ids: $ids) {
       nodes {
         id
-        identity
       }
       rels {
         id
@@ -75,6 +73,8 @@ export const useNodesWithRelations = (
     variables: { ids },
     fetchPolicy: "network-only",
   });
+
+  console.log(data);
 
   return {
     loading,

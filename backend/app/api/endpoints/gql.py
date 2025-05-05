@@ -13,7 +13,6 @@ driver = get_neo4j_driver()
 @strawberry.type
 class Node:
     id: strawberry.ID
-    identity: strawberry.ID
 
 
 @strawberry.type
@@ -62,14 +61,14 @@ def _fetch_related_nodes(tx, ids: List[str]):
           collect(
             DISTINCT n {
               .*,
-              _id: ID(n)
+              id: ID(n)
             }
           )
           +
           collect(
             DISTINCT m {
               .*,
-              _id: ID(m)
+              id: ID(m)
             }
           )
             AS nodes,
@@ -104,8 +103,6 @@ class Query:
                 records.append(
                     Node(
                         id=rec["id"],
-                        text=rec["text"],
-                        identity=rec["identity"]
                     )
                 )
         return records
@@ -125,7 +122,6 @@ class Query:
                 result_nodes.append(
                     Node(
                         id=rec["id"],
-                        identity=rec["_id"],
                     )
                 )
 

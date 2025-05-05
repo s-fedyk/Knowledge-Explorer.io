@@ -36,7 +36,7 @@ export const MessageProvider = ({ children }) => {
 
     const queryRequest = {
       query: userMessage,
-      similarity_top_k: 3,
+      similarity_top_k: 8,
     };
 
     try {

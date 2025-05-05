@@ -13,8 +13,6 @@ import { useNodesWithRelations } from "@api/apollo.ts";
  */
 
 function GraphView({ nodes }) {
-  console.log("rendering grpah");
-
   const { loading, error, data } = useNodesWithRelations(nodes);
 
   const mouseEventCallbacks: MouseEventCallbacks = {
@@ -54,10 +52,10 @@ function GraphView({ nodes }) {
     onZoom: (zoomLevel: number) => console.log("onZoom", zoomLevel),
   };
 
-  console.log(nodes);
-  console.log(data);
   return (
     <InteractiveNvlWrapper
+      nodes={data ? data.nodes : []}
+      rels={data ? data.rels : []}
       mouseEventCallbacks={mouseEventCallbacks}
       className={"bg-gray-100"}
     />
