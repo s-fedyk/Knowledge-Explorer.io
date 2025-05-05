@@ -2,6 +2,7 @@ import type { HitTargets, Node, Relationship } from "@neo4j-nvl/base";
 import { InteractiveNvlWrapper } from "@neo4j-nvl/react";
 import type { MouseEventCallbacks } from "@neo4j-nvl/react";
 import React, { useState } from "react";
+import { useNodesWithRelations } from "@api/apollo.ts";
 
 /*
  * A graphview gets the base nodes used to answer the query.
@@ -12,6 +13,10 @@ import React, { useState } from "react";
  */
 
 function GraphView({ nodes }) {
+  console.log("rendering grpah");
+
+  const { loading, error, data } = useNodesWithRelations(nodes);
+
   const mouseEventCallbacks: MouseEventCallbacks = {
     onHover: (
       element: Node | Relationship,
@@ -50,9 +55,9 @@ function GraphView({ nodes }) {
   };
 
   console.log(nodes);
+  console.log(data);
   return (
     <InteractiveNvlWrapper
-      nodes={nodes}
       mouseEventCallbacks={mouseEventCallbacks}
       className={"bg-gray-100"}
     />

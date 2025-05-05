@@ -1,8 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useMessageContext } from "@context/MessageContext";
 
-// ChatWindow component that handles message display and user input
-const ChatWindow = ({ onSendMessage, messages = [] }) => {
+/**
+ * ChatWindow component that handles message display and user input
+ */
+const ChatWindow = () => {
   const [inputValue, setInputValue] = useState("");
+  const { messages, handleSendMessage, formatTime } = useMessageContext();
   const messagesEndRef = useRef(null);
 
   // Scroll to bottom of chat whenever messages change
@@ -10,12 +14,10 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSend = () => {
     if (inputValue.trim() === "") return;
-
-    // Call the parent's onSendMessage handler
-    onSendMessage(inputValue);
-
+    // Call the context's handleSendMessage handler
+    handleSendMessage(inputValue);
     // Clear input
     setInputValue("");
   };
@@ -23,12 +25,8 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      handleSend();
     }
-  };
-
-  const formatTime = (date) => {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -83,7 +81,6 @@ const ChatWindow = ({ onSendMessage, messages = [] }) => {
           </div>
         )}
       </div>
-
       {/* Input area - fixed at bottom */}
       <div className="bg-gray-100 border-t border-gray-200 p-4">
         <div className="flex w-full">

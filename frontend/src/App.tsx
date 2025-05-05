@@ -3,7 +3,10 @@ import "./App.css";
 import { NodeType } from "./types/filesystem/Node";
 import type { Folder } from "./types/filesystem/Node";
 import { nanoid } from "nanoid";
-import { Client } from "./api/query.ts";
+import { client } from "./api/apollo.ts";
+import { ApolloProvider } from "@apollo/client";
+import { TabProvider } from "@context/TabContext";
+import { MessageProvider } from "@context/MessageContext";
 
 import NavSidebar from "./components/sidebar/NavSidebar";
 import TabView from "./components/tabview/TabView";
@@ -62,7 +65,6 @@ const useRAG = () => {
 };
 
 function App() {
-  const [messages, setMessages] = useState([]);
   const [files, setFiles] = useState({});
   const [directory, setDirectory] = useState<Folder>({
     id: "root",
@@ -76,41 +78,6 @@ function App() {
     { id: "3", name: "Personal Chat" },
   ]);
   const [activeChatHistory, setActiveChatHistory] = useState(null);
-
-  const testGraphAPI = async () => {
-    try {
-      const documentIds = Object.keys(directory.children);
-      const testGraphResponse = await Client.getGraphData({
-        documentIds,
-        limit: 20,
-      });
-
-      console.log("Test graph API response:", testGraphResponse);
-      addMessage(
-        "system",
-        `Graph data retrieved: ${testGraphResponse.nodes.length} nodes and ${testGraphResponse.relationships.length} relationships`,
-      );
-
-      console.log("here", testGraphResponse.nodes);
-      // build your new "Graph" tab
-      const graphTab = {
-        id: nanoid(), // or whatever unique id you like
-        name: "Graph",
-        type: "graph",
-        nodes: testGraphResponse.nodes,
-        relationships: testGraphResponse.relationships,
-      };
-    } catch (error) {
-      console.error("Test graph API failed:", error);
-      addMessage("system", `Failed to retrieve graph data: ${error.message}`);
-    }
-  };
-
-  useEffect(() => {
-    // Only run this once when the component is mounted
-    testGraphAPI();
-  }, []);
-
   const { addDocument, removeDocument } = useRAG();
 
   // Process uploaded files
@@ -181,68 +148,6 @@ function App() {
     removeDocument(fileId);
   };
 
-  const addMessage = (sender, text) => {
-    setMessages((prev) => [...prev, { sender, text, timestamp: new Date() }]);
-  };
-
-  const handleSendMessage = async (userMessage) => {
-    // Add user message
-    addMessage("user", userMessage);
-
-    const queryRequest: QueryRequest = {
-      query: userMessage,
-      similarity_top_k: 3,
-    };
-
-    try {
-      const response: QueryResponse = await Client.query(queryRequest);
-
-      // Add bot response
-      addMessage("bot", response.answer);
-
-      // Extract and open file references
-      extractReferences(response.answer);
-    } catch (error) {
-      // Fallback response if API call fails
-      addMessage("bot", generateResponse(userMessage));
-    }
-  };
-
-  // Extract file references from bot response
-  const extractReferences = (text) => {
-    // Look for file references in the format "document name"
-    const fileRegex = /"([^"]+)"/g;
-    const matches = [...text.matchAll(fileRegex)];
-
-    matches.forEach((match) => {
-      const filename = match[1];
-      // Find the file by name
-      const fileEntry = Object.values(directory.children).find(
-        (file) => file.name === filename,
-      );
-
-      if (fileEntry) {
-        openFileTab(
-          fileEntry.id,
-          fileEntry.name,
-          fileEntry.fileType,
-          fileEntry.content,
-        );
-      }
-    });
-  };
-
-  // Close a tab
-  const closeTab = (tabId) => {
-    // Don't allow closing the chat tab
-    if (tabId === "chat") return;
-
-    // If the active tab is being closed, switch to chat
-    if (activeTabId === tabId) {
-      setActiveTabId("chat");
-    }
-  };
-
   // Create new chat history
   const createNewChatHistory = () => {
     const newId = Date.now().toString();
@@ -274,29 +179,29 @@ function App() {
   };
 
   return (
-    <div className="flex w-screen h-screen bg-gray-100">
-      {/* Navigation Sidebar Component */}
-      <NavSidebar
-        chatHistories={chatHistories}
-        activeChatHistory={activeChatHistory}
-        onSelectChatHistory={selectChatHistory}
-        onCreateNewChat={createNewChatHistory}
-        files={files}
-        directory={directory}
-        onFileSelect={handleFileSelect}
-        onFileUpload={processFiles}
-        onFileRemove={removeFile}
-      />
+    <ApolloProvider client={client}>
+      <TabProvider>
+        <MessageProvider>
+          <div className="flex w-screen h-screen bg-gray-100">
+            {/* Navigation Sidebar Component */}
+            <NavSidebar
+              chatHistories={chatHistories}
+              activeChatHistory={activeChatHistory}
+              onSelectChatHistory={selectChatHistory}
+              onCreateNewChat={createNewChatHistory}
+              files={files}
+              directory={directory}
+              onFileSelect={handleFileSelect}
+              onFileUpload={processFiles}
+              onFileRemove={removeFile}
+            />
 
-      {/* TabView with Chat and File tabs */}
-      <TabView
-        chatID={1}
-        chatProps={{
-          messages: messages,
-          onSendMessage: handleSendMessage,
-        }}
-      />
-    </div>
+            {/* TabView with Chat and File tabs */}
+            <TabView />
+          </div>
+        </MessageProvider>
+      </TabProvider>
+    </ApolloProvider>
   );
 }
 
