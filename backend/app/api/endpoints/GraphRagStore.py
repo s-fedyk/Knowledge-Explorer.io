@@ -41,6 +41,7 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
         community_hierarchical_clusters = hierarchical_leiden(
             nx_graph, max_cluster_size=self.max_cluster_size
         )
+
         self.entity_info, community_info = self._collect_community_info(
             nx_graph, community_hierarchical_clusters
         )

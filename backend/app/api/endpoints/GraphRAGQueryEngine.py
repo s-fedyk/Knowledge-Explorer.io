@@ -1,6 +1,6 @@
 from llama_index.core.query_engine import CustomQueryEngine
 from llama_index.core.llms import LLM
-from llama_index.core import PropertyGraphIndex
+from llama_index.core import PropertyGraphIndex, Response
 from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
 
@@ -19,30 +19,42 @@ class GraphRAGQueryEngine(CustomQueryEngine):
     _llm:     LLM = PrivateAttr(default_factory=lambda: Settings.llm)
     similarity_top_k: int = 20
 
-    def custom_query(self, query_str: str) -> str:
+    def custom_query(self, query_str: str) -> Response:
         """Process all community summaries to generate answers to a specific query."""
 
-        entities = self.get_entities(query_str, self.similarity_top_k)
+        entities, source_nodes = self.get_entities(
+            query_str,
+            self.similarity_top_k
+        )
 
         logger.info("Retrieved entities: %s", entities)
+        logger.info("Source nodes: %s", source_nodes)
+
         logger.info(
             "Graph store entity info: {%s}",
             self.graph_store.entity_info
         )
 
         community_ids = self.retrieve_entity_communities(
-            self.graph_store.entity_info, entities
+            self.graph_store.entity_info,
+            entities
         )
 
         community_summaries = self.graph_store.get_community_summaries()
+
+        logger.info("Summaries: {%s}", community_summaries)
         community_answers = [
             self.generate_answer_from_summary(community_summary, query_str)
             for id, community_summary in community_summaries.items()
             if id in community_ids
         ]
+        logger.info("Community answers: {%s}", community_answers)
 
         final_answer = self.aggregate_answers(community_answers)
-        return final_answer
+        return Response(
+            response=final_answer,
+            source_nodes=source_nodes,
+        )
 
     def get_entities(self, query_str, similarity_top_k):
         nodes_retrieved = self.index.as_retriever(
@@ -65,7 +77,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
                 enitites.add(subject)
                 enitites.add(obj)
 
-        return list(enitites)
+        return list(enitites), nodes_retrieved
 
     def retrieve_entity_communities(self, entity_info, entities):
         """

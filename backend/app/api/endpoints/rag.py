@@ -2,6 +2,7 @@ import os
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 import re
+from llama_index.core.schema import NodeWithScore
 from pydantic import BaseModel
 from neo4j import GraphDatabase
 from pathlib import Path
@@ -153,7 +154,7 @@ class GraphItem(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: str
-    sources: List[SourceItem]
+    sources: List[str]
 
 
 class UploadResponse(BaseModel):
@@ -175,6 +176,7 @@ async def query_documents(
             property_graph_store=graph_store,
             vector_store=get_vector_store()
         )
+
         pg_index = PropertyGraphIndex.from_existing(
             property_graph_store=graph_store,
             storage_context=storage_ctx,
@@ -185,14 +187,19 @@ async def query_documents(
             index=pg_index,
         )
 
-        pg_resp = await run_in_threadpool(
+        resp = await run_in_threadpool(
             query_engine.query,
             request.query
         )
 
+        def to_node_id(node: NodeWithScore):
+            return node.id_
+
+        sources = list(map(to_node_id, resp.source_nodes))
+
         return {
-            "answer": str(pg_resp),
-            "sources": [],
+            "answer": resp.response,
+            "sources": sources
         }
     except Exception as e:
         logger.exception("Error during query execution")
@@ -285,21 +292,34 @@ async def process_document(file_path: str, filename: str):
             logger.info("Temporary file removed: %s", file_path)
 
 
-@router.get("/documents", response_model=List[str])
-async def list_documents():
+@router.get("/documents", response_model=List[Dict[str, Any]])
+async def list_documents(driver=Depends(get_neo4j_driver)):
     """
-    List all documents that have been uploaded and processed
+    List all documents that have been uploaded and processed in Neo4j
+    Returns document information including filename and available pages
     """
-    logger.info("Listing documents in %s", settings.data_path)
+    logger.info("Listing documents from Neo4j database")
     try:
-        files = [
-            f for f in os.listdir(settings.data_path)
-            if f != ".gitkeep" and os.path.isfile(os.path.join(settings.data_path, f))
-        ]
-        logger.info("Found %d documents", len(files))
-        return files
+        with driver.session(database=settings.neo4j_database) as session:
+            # Query to get unique files and their pages from the TextNode nodes
+            result = session.run(
+                """
+                MATCH (chunk:Chunk)
+                RETURN distinct chunk.file_name as file_name
+                """
+            )
+
+            documents = []
+            for record in result:
+                documents.append({
+                    "file_name": record["file_name"],
+                })
+
+            logger.info(
+                f"Found {len(documents)} documents with page information")
+            return documents
     except Exception as e:
-        logger.exception("Error listing documents")
+        logger.exception("Error listing documents from Neo4j")
         raise HTTPException(
             status_code=500, detail=f"Error listing documents: {str(e)}"
         )
