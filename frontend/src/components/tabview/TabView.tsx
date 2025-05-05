@@ -2,6 +2,7 @@ import { useState } from "react";
 import ChatWindow from "./ChatWindow";
 import FileView from "./FileView";
 import GraphView from "./GraphView";
+import { Client } from "@api/query.ts";
 
 /**
  * TabView component for managing multiple tabs, including chat and file viewers
@@ -12,22 +13,50 @@ import GraphView from "./GraphView";
  * @param {Function} props.onTabClose - Function to call when a tab is closed
  * @param {Object} props.chatProps - Props to pass to the ChatWindow component
  */
-const TabView = ({
-  tabs = [],
-  activeTabId,
-  onTabChange,
-  onTabClose,
-  chatProps = {},
-}) => {
+const TabView = ({ chatID, chatProps = {}, onFileSelect }) => {
+  const [activeTabId, setActiveTabId] = useState(1);
+  const [messages, setMessages] = useState([]);
+
+  const [tabs, setTabs] = useState([
+    { id: 1, name: "Chat", type: "chat" },
+    {
+      id: 2,
+      name: "File",
+      type: "file",
+      path: "http://localhost:8100//criticaldialoguesample.docx",
+      fileType: "docx",
+    },
+  ]);
+
+  const addMessage = (sender, text) => {
+    setMessages((prev) => [...prev, { sender, text, timestamp: new Date() }]);
+  };
+
+  const handleSendMessage = async (userMessage) => {
+    // Add user message
+    addMessage("user", userMessage);
+
+    const queryRequest: QueryRequest = {
+      query: userMessage,
+      similarity_top_k: 3,
+    };
+
+    try {
+      const response: QueryResponse = await Client.query(queryRequest);
+      addMessage("bot", response.answer);
+    } catch (error) {
+      addMessage("bot", "API call error, ${error}");
+    }
+  };
+
   // Handle tab selection
   const handleTabClick = (tabId) => {
-    onTabChange(tabId);
+    setActiveTabId(tabId);
   };
 
   // Handle tab closing
   const handleCloseTab = (e, tabId) => {
     e.stopPropagation();
-    onTabClose(tabId);
   };
 
   // Get tab icon based on type
@@ -56,7 +85,9 @@ const TabView = ({
   const renderTabContent = (tab) => {
     switch (tab.type) {
       default:
-        return <ChatWindow {...chatProps} />;
+        return (
+          <ChatWindow onSendMessage={handleSendMessage} messages={messages} />
+        );
       case "file":
         return <FileView file={tab} />;
       case "graph":

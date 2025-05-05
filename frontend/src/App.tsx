@@ -58,19 +58,7 @@ const useRAG = () => {
     return results.sort((a, b) => b.relevance - a.relevance);
   };
 
-  const generateResponse = (query) => {
-    const results = search(query);
-
-    if (results.length === 0) {
-      return "I couldn't find any relevant information in your documents to answer that question.";
-    }
-
-    const topResult = results[0];
-
-    return `Based on the document "${topResult.filename}", I found this relevant information: ${topResult.snippet}`;
-  };
-
-  return { addDocument, removeDocument, generateResponse, documents };
+  return { addDocument, removeDocument, documents };
 };
 
 function App() {
@@ -88,18 +76,6 @@ function App() {
     { id: "3", name: "Personal Chat" },
   ]);
   const [activeChatHistory, setActiveChatHistory] = useState(null);
-
-  // Tab management
-  const [tabs, setTabs] = useState([
-    { id: 1, name: "Chat", type: "chat" },
-    {
-      id: 2,
-      name: "File",
-      type: "file",
-      path: "http://localhost:8100//criticaldialoguesample.docx",
-      fileType: "docx",
-    },
-  ]);
 
   const testGraphAPI = async () => {
     try {
@@ -124,9 +100,6 @@ function App() {
         nodes: testGraphResponse.nodes,
         relationships: testGraphResponse.relationships,
       };
-
-      // append it to the existing array
-      setTabs((prevTabs) => [...prevTabs, graphTab]);
     } catch (error) {
       console.error("Test graph API failed:", error);
       addMessage("system", `Failed to retrieve graph data: ${error.message}`);
@@ -138,8 +111,7 @@ function App() {
     testGraphAPI();
   }, []);
 
-  const [activeTabId, setActiveTabId] = useState(1);
-  const { addDocument, removeDocument, generateResponse } = useRAG();
+  const { addDocument, removeDocument } = useRAG();
 
   // Process uploaded files
   const processFiles = async (uploadedFiles) => {
@@ -260,35 +232,10 @@ function App() {
     });
   };
 
-  // Open a file in a new tab
-  const openFileTab = (fileId, fileName, fileType, content) => {
-    // If tab already exists, just activate it
-    if (tabs.some((tab) => tab.id === fileId)) {
-      setActiveTabId(fileId);
-      return;
-    }
-
-    // Add new tab
-    setTabs((prev) => [
-      ...prev,
-      {
-        id: fileId,
-        name: fileName,
-        type: fileType || "text",
-        content: content,
-      },
-    ]);
-
-    // Switch to the new tab
-    setActiveTabId(fileId);
-  };
-
   // Close a tab
   const closeTab = (tabId) => {
     // Don't allow closing the chat tab
     if (tabId === "chat") return;
-
-    setTabs((prev) => prev.filter((tab) => tab.id !== tabId));
 
     // If the active tab is being closed, switch to chat
     if (activeTabId === tabId) {
@@ -336,7 +283,6 @@ function App() {
         onCreateNewChat={createNewChatHistory}
         files={files}
         directory={directory}
-        activeFile={activeTabId !== "chat" ? activeTabId : null}
         onFileSelect={handleFileSelect}
         onFileUpload={processFiles}
         onFileRemove={removeFile}
@@ -344,10 +290,7 @@ function App() {
 
       {/* TabView with Chat and File tabs */}
       <TabView
-        tabs={tabs}
-        activeTabId={activeTabId}
-        onTabChange={setActiveTabId}
-        onTabClose={closeTab}
+        chatID={1}
         chatProps={{
           messages: messages,
           onSendMessage: handleSendMessage,

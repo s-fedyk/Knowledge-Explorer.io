@@ -10,7 +10,7 @@ import type {
   GraphRelationship,
   GraphResponse,
   ApiError,
-} from "../types/api/api";
+} from "@types/api/api";
 
 export const API_BASE_URL = "http://localhost:8000";
 export const API_VERSION = "v1";
@@ -93,7 +93,9 @@ export class APIClient {
    * @param graphRequest The graph request parameters
    * @returns Promise with the graph response containing nodes and relationships
    */
-  public async getGraphData(graphRequest: GraphRequest): Promise<GraphResponse> {
+  public async getGraphData(
+    graphRequest: GraphRequest,
+  ): Promise<GraphResponse> {
     try {
       const response = await fetch(API_ENDPOINTS.GRAPH, {
         method: "GET",
@@ -103,11 +105,11 @@ export class APIClient {
         throw this.createApiError(errorData, response.status);
       }
       const result = (await response.json()) as GraphResponse;
-      console.log("got", result)
+      console.log("got", result);
 
-      result.nodes = result.nodes.map(node => ({ id: String(node.id) }));
+      result.nodes = result.nodes.map((node) => ({ id: String(node.id) }));
 
-      return result
+      return result;
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;
