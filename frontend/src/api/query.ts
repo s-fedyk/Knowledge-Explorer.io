@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
   UPLOAD: `${API_BASE_URL}/api/${API_VERSION}/upload`,
   GRAPH: `${API_BASE_URL}/api/${API_VERSION}/graph`,
   SESSION: `${API_BASE_URL}/api/${API_VERSION}/session`,
+  SOURCES: `${API_BASE_URL}/api/${API_VERSION}/sources`,
 };
 
 export class APIClient {
@@ -34,7 +35,7 @@ export class APIClient {
   public async queryStream(
     queryRequest: QueryRequest,
     onToken: (token: string) => void,
-    onComplete?: () => void,
+    onComplete?: (sessionID) => void,
     onError?: (error: ApiError) => void,
   ): Promise<() => void> {
     try {
@@ -76,8 +77,9 @@ export class APIClient {
           // Stream is complete
           eventSource.close();
           // Clean up the session
+
+          if (onComplete) onComplete(sessionId);
           this.deleteSession(sessionId).catch(console.error);
-          if (onComplete) onComplete();
           return;
         }
 

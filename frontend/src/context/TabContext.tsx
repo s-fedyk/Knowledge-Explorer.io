@@ -71,7 +71,6 @@ export const TabProvider = ({ children }) => {
       nodes: nodes,
     };
     const newTabId = addTab(graphTab);
-    setActiveTabId(newTabId);
     return newTabId;
   };
 

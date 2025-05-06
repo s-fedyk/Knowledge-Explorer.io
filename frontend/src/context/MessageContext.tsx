@@ -406,70 +406,63 @@ export const MessageProvider = ({ children }) => {
           updateMessage(botMessageIndex, accumulatedText, null);
         },
         // Completion callback
-        () => {
-          console.log("Stream complete");
-
-          // Finalize any in-progress sections
-          const state = streamingStateRef.current;
-
-          // If we're still in a special section, force complete it
-          if (
-            state.currentSectionType !== SECTION_TYPES.TEXT &&
-            state.currentSectionId
-          ) {
-            const sectionIndex = state.sections.findIndex(
-              (s) => s.id === state.currentSectionId,
-            );
-            if (sectionIndex !== -1) {
-              state.sections[sectionIndex].complete = true;
-              updateMessage(botMessageIndex, null, [...state.sections]);
-            }
-          }
-
-          // Add any remaining text buffer as a final section
-          if (state.currentTextBuffer.length > 0) {
-            // Check if last section is text
-            if (
-              state.sections.length > 0 &&
-              state.sections[state.sections.length - 1].type ===
-                SECTION_TYPES.TEXT
-            ) {
-              // Update the existing text section
-              state.sections[state.sections.length - 1].content +=
-                state.currentTextBuffer;
-            } else {
-              // Add a new text section
-              state.sections.push({
-                type: SECTION_TYPES.TEXT,
-                content: state.currentTextBuffer,
-                id: `text-${Date.now()}`,
-                complete: true,
-              });
-            }
-
-            // Clear the buffer
-            state.currentTextBuffer = "";
-
-            // Update the message with the updated sections
-            updateMessage(botMessageIndex, null, [...state.sections]);
-          }
-
-          // Try to extract sources for the graph tab
+        async (sessionId) => {
           try {
-            const sourcesPattern = /Sources: (.+?)(?:\n|$)/;
-            const sourcesMatch = accumulatedText.match(sourcesPattern);
-            if (sourcesMatch && sourcesMatch[1]) {
-              const sources = sourcesMatch[1].split(", ");
-              if (sources.length > 0) {
-                addGraphTab(sources);
+            console.log(sessionId);
+            const sources = (await Client.getSources(sessionId)).sources;
+
+            addGraphTab(sources);
+            // Finalize any in-progress sections
+            const state = streamingStateRef.current;
+            // If we're still in a special section, force complete it
+            if (
+              state.currentSectionType !== SECTION_TYPES.TEXT &&
+              state.currentSectionId
+            ) {
+              const sectionIndex = state.sections.findIndex(
+                (s) => s.id === state.currentSectionId,
+              );
+              if (sectionIndex !== -1) {
+                state.sections[sectionIndex].complete = true;
+                updateMessage(botMessageIndex, null, [...state.sections]);
               }
             }
+            // Add any remaining text buffer as a final section
+            if (state.currentTextBuffer.length > 0) {
+              // Check if last section is text
+              if (
+                state.sections.length > 0 &&
+                state.sections[state.sections.length - 1].type ===
+                  SECTION_TYPES.TEXT
+              ) {
+                // Update the existing text section
+                state.sections[state.sections.length - 1].content +=
+                  state.currentTextBuffer;
+              } else {
+                // Add a new text section
+                state.sections.push({
+                  type: SECTION_TYPES.TEXT,
+                  content: state.currentTextBuffer,
+                  id: `text-${Date.now()}`,
+                  complete: true,
+                });
+              }
+              // Clear the buffer
+              state.currentTextBuffer = "";
+              // Update the message with the updated sections
+              updateMessage(botMessageIndex, null, [...state.sections]);
+            }
+            // Reset streaming state
+            cancelStreamRef.current = null;
           } catch (error) {
-            console.error("Error processing sources:", error);
+            console.error("Error getting sources:", error);
+            // Still complete the message even if sources failed
+            const state = streamingStateRef.current;
+            // Finalize sections
+            updateMessage(botMessageIndex, null, [...state.sections]);
+            // Reset streaming state
+            cancelStreamRef.current = null;
           }
-
-          // Reset streaming state
-          cancelStreamRef.current = null;
         },
         // Error callback
         (error) => {
