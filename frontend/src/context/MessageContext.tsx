@@ -2,10 +2,8 @@ import React, { createContext, useContext, useState, useRef } from "react";
 import { Client } from "@api/query.ts";
 import { useTabContext } from "./TabContext";
 
-// Create context
 const MessageContext = createContext();
 
-// Define section types and their token markers
 const SECTION_TYPES = {
   TEXT: "text",
   SUMMARY: {
@@ -18,7 +16,6 @@ const SECTION_TYPES = {
     startToken: "[FINALSTART]",
     endToken: "[FINALEND]",
   },
-  // Add more section types as needed
 };
 
 /**
@@ -43,13 +40,12 @@ export const MessageProvider = ({ children }) => {
   const { addGraphTab } = useTabContext();
   const cancelStreamRef = useRef(null);
 
-  // Track streaming state and content sections
   const streamingStateRef = useRef({
     currentSectionType: SECTION_TYPES.TEXT,
     currentSectionId: null,
     currentSectionText: "",
     currentTextBuffer: "",
-    sections: [], // Array of {type: string, content: string, id: string, complete: boolean}
+    sections: [],
   });
 
   const addMessage = (sender, text, sections = []) => {
@@ -62,10 +58,9 @@ export const MessageProvider = ({ children }) => {
         timestamp: new Date(),
       },
     ]);
-    return new Date(); // Return the timestamp for reference
+    return new Date();
   };
 
-  // Update an existing message
   const updateMessage = (messageId, newText = null, sectionsUpdate = null) => {
     setMessages((prev) =>
       prev.map((message, index) => {
@@ -107,7 +102,6 @@ export const MessageProvider = ({ children }) => {
       };
     }
 
-    // Create new section
     const newSection = {
       type: sectionType,
       content: initialContent,

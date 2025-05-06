@@ -13,6 +13,10 @@ export interface Source {
 
 export interface QueryResponse {
   answer: string;
+}
+
+export interface SourcesResponse {
+  sessionID: string;
   sources: string[];
 }
 

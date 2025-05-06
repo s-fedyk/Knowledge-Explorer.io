@@ -9,6 +9,7 @@ import type {
   GraphRelationship,
   GraphResponse,
   ApiError,
+  SourcesResponse,
 } from "@types/api/api";
 
 export const API_BASE_URL = "http://localhost:8000";
@@ -37,7 +38,6 @@ export class APIClient {
     onError?: (error: ApiError) => void,
   ): Promise<() => void> {
     try {
-      // Step 1: POST to create a session and get a session ID
       const response = await fetch(API_ENDPOINTS.QUERY, {
         method: "POST",
         headers: {
@@ -81,14 +81,12 @@ export class APIClient {
           return;
         }
 
-        // Process and send token to callback
         onToken(event.data);
       };
 
-      // Handle errors
       eventSource.onerror = (error) => {
         eventSource.close();
-        // Try to clean up the session
+
         this.deleteSession(sessionId).catch(console.error);
         if (onError) {
           onError(
@@ -103,7 +101,6 @@ export class APIClient {
         }
       };
 
-      // Return a function that can be used to cancel the stream
       return () => {
         eventSource.close();
         this.deleteSession(sessionId).catch(console.error);
@@ -120,7 +117,7 @@ export class APIClient {
           ),
         );
       }
-      // Return a no-op function since we already failed
+
       return () => {};
     }
   }
