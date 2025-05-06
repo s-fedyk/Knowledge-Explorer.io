@@ -1,8 +1,10 @@
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, AsyncGenerator
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 import re
 from llama_index.core.schema import NodeWithScore
+from llama_index.core.types import TokenGen
 from pydantic import BaseModel
 from neo4j import GraphDatabase
 from pathlib import Path
@@ -143,51 +145,70 @@ class QueryRequest(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    answer: str
+    answer: TokenGen
     sources: List[str]
 
 
-@router.post("/query", response_model=QueryResponse)
+async def data_streamer(response_gen) -> AsyncGenerator[str, None]:
+    """
+    Convert the LLM streaming generator to a proper FastAPI StreamingResponse format.
+
+    Args:
+        response_gen: Generator from LLM stream_chat
+
+    Yields:
+        Formatted string chunks for SSE (Server-Sent Events)
+    """
+    try:
+        for response in response_gen:
+            token = str(response.delta)
+            logger.info(token)
+
+            if token:
+                yield f"data: {token}\n\n"
+
+        # Signal completion
+        yield "data: [DONE]\n\n"
+    except Exception as e:
+        # Handle errors
+        yield f"data: Error: {str(e)}\n\n"
+        yield "data: [DONE]\n\n"
+
+
+@router.post("/query")
 async def query_documents(
     request: QueryRequest,
     index: VectorStoreIndex = Depends(get_rag_engine),
     graph_store=Depends(get_graph_store),
 ):
     """
-    Query the RAG system with a natural language question
+    Query the RAG system with a natural language question and stream the response
     """
     try:
+        # Set up the graph index and query engine
         storage_ctx = StorageContext.from_defaults(
             property_graph_store=graph_store,
             vector_store=get_vector_store()
         )
-
         pg_index = PropertyGraphIndex.from_existing(
             property_graph_store=graph_store,
             storage_context=storage_ctx,
         )
-
         query_engine = GraphRAGQueryEngine(
             graph_store=graph_store,
             index=pg_index,
         )
 
-        resp = await run_in_threadpool(
-            query_engine.query,
-            request.query
+        # Get the StreamingResponse directly - no need for run_in_threadpool
+        # because aquery returns a StreamingResponse object, not a coroutine
+        streaming_response = await run_in_threadpool(query_engine.query, request.query)
+
+        # Pass the response_gen from the StreamingResponse to our data_streamer
+        return StreamingResponse(
+            content=data_streamer(streaming_response.response_gen),
+            media_type='text/event-stream'
         )
-
-        def to_node_id(node: NodeWithScore):
-            return node.node_id
-
-        sources = list(map(to_node_id, resp.source_nodes))
-
-        return {
-            "answer": resp.response,
-            "sources": sources
-        }
     except Exception as e:
-        logger.exception("Error during query execution")
         raise HTTPException(status_code=500, detail=f"Query error: {str(e)}")
 
 

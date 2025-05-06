@@ -1,25 +1,32 @@
+from llama_index.core.base.response.schema import StreamingResponse
 from llama_index.core.query_engine import CustomQueryEngine
-from llama_index.core.llms import LLM
+from llama_index.core.llms import LLM, ChatResponseGen
 from llama_index.core import PropertyGraphIndex, Response
 from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
+from typing import List, Any, Generator, AsyncGenerator
 
 from pydantic import PrivateAttr
 from app.logger import logger
-
 
 from .GraphRagStore import GraphRAGStore
 
 import re
 
 
+async def response_streamer(response_gen):
+    """Convert a response generator to a proper async generator."""
+    for token in response_gen:
+        yield f"{token}"
+
+
 class GraphRAGQueryEngine(CustomQueryEngine):
     graph_store: GraphRAGStore
     index: PropertyGraphIndex
-    _llm:     LLM = PrivateAttr(default_factory=lambda: Settings.llm)
+    _llm: LLM = PrivateAttr(default_factory=lambda: Settings.llm)
     similarity_top_k: int = 20
 
-    def custom_query(self, query_str: str) -> Response:
+    def custom_query(self, query_str: str) -> StreamingResponse:
         """Process all community summaries to generate answers to a specific query."""
 
         entities, source_nodes = self.get_entities(
@@ -50,18 +57,51 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         ]
         logger.info("Community answers: {%s}", community_answers)
 
-        final_answer = self.aggregate_answers(community_answers)
-        return Response(
-            response=final_answer,
-            source_nodes=source_nodes,
+        # Get the stream chat generator - this is already a generator, not a coroutine
+        response_gen = self.aggregate_answers_stream(community_answers)
+
+        return StreamingResponse(response_gen=response_gen)
+
+    async def acustom_query(self, query_str: str) -> StreamingResponse:
+        """Async version that returns a StreamingResponse with a proper response generator."""
+        entities, source_nodes = self.get_entities(
+            query_str,
+            self.similarity_top_k
         )
+
+        logger.info("Retrieved entities: %s", entities)
+        logger.info("Source nodes: %s", source_nodes)
+        logger.info(
+            "Graph store entity info: {%s}",
+            self.graph_store.entity_info
+        )
+
+        community_ids = self.retrieve_entity_communities(
+            self.graph_store.entity_info,
+            entities
+        )
+
+        community_summaries = self.graph_store.get_community_summaries()
+
+        logger.info("Summaries: {%s}", community_summaries)
+        community_answers = [
+            self.generate_answer_from_summary(community_summary, query_str)
+            for id, community_summary in community_summaries.items()
+            if id in community_ids
+        ]
+        logger.info("Community answers: {%s}", community_answers)
+
+        # Get the stream chat generator - this is already a generator, not a coroutine
+        response_gen = self.aggregate_answers_stream(community_answers)
+
+        return StreamingResponse(response_gen=response_gen)
 
     def get_entities(self, query_str, similarity_top_k):
         nodes_retrieved = self.index.as_retriever(
             similarity_top_k=similarity_top_k
         ).retrieve(query_str)
 
-        enitites = set()
+        entities = set()
         pattern = (
             r"^(\w+(?:\s+\w+)*)\s*->\s*([a-zA-Z\s]+?)\s*->\s*(\w+(?:\s+\w+)*)$"
         )
@@ -74,10 +114,10 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             for match in matches:
                 subject = match[0]
                 obj = match[2]
-                enitites.add(subject)
-                enitites.add(obj)
+                entities.add(subject)
+                entities.add(obj)
 
-        return list(enitites), nodes_retrieved
+        return list(entities), nodes_retrieved
 
     def retrieve_entity_communities(self, entity_info, entities):
         """
@@ -117,7 +157,6 @@ class GraphRAGQueryEngine(CustomQueryEngine):
 
     def aggregate_answers(self, community_answers):
         """Aggregate individual community answers into a final, coherent response."""
-        # intermediate_text = " ".join(community_answers)
         prompt = "Combine the following intermediate answers into a final, concise response."
         messages = [
             ChatMessage(role="system", content=prompt),
@@ -131,3 +170,19 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             r"^assistant:\s*", "", str(final_response)
         ).strip()
         return cleaned_final_response
+
+    def aggregate_answers_stream(self, community_answers) -> Generator:
+        """
+        Aggregate individual community answers and return a generator that streams the response.
+        This method returns a generator directly, not a coroutine.
+        """
+        prompt = "Combine the following intermediate answers into a final, concise response."
+        messages = [
+            ChatMessage(role="system", content=prompt),
+            ChatMessage(
+                role="user",
+                content=f"Intermediate answers: {community_answers}",
+            ),
+        ]
+
+        return self._llm.stream_chat(messages)

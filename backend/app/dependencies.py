@@ -44,6 +44,7 @@ def get_graph_store() -> GraphRAGStore:
         password=settings.neo4j_password,
         url=settings.neo4j_uri,
     )
+    store.build_communities()
     return store
 
 
@@ -97,6 +98,7 @@ def init_settings():
     """Create a service context for the RAG pipeline."""
     # Set up the LLM
     llm = OpenAI(
+        streaming=True,
         api_key=settings.openai_api_key,
         model=settings.llm_model,
         temperature=0.1
