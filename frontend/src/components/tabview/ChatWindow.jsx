@@ -2,11 +2,122 @@ import React, { useState, useRef, useEffect } from "react";
 import { useMessageContext } from "@context/MessageContext";
 
 /**
+ * SummaryBlock component renders a summary section
+ */
+const SummaryBlock = ({ content, complete }) => {
+  return (
+    <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded my-2">
+      <div className="flex items-center mb-1">
+        <svg
+          className="w-5 h-5 text-amber-500 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+        <span className="font-medium text-amber-700">Source Summary</span>
+        {!complete && (
+          <span className="ml-2 text-amber-500">
+            <span className="animate-pulse">•</span>
+          </span>
+        )}
+      </div>
+      <div className="text-gray-700 whitespace-pre-wrap">{content}</div>
+    </div>
+  );
+};
+
+/**
+ * FinalBlock component renders a final section (highlighted differently)
+ */
+const FinalBlock = ({ content, complete }) => {
+  return (
+    <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded my-2">
+      <div className="flex items-center mb-1">
+        <svg
+          className="w-5 h-5 text-blue-500 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M5 13l4 4L19 7"
+          ></path>
+        </svg>
+        <span className="font-medium text-blue-700">Final Answer</span>
+        {!complete && (
+          <span className="ml-2 text-blue-500">
+            <span className="animate-pulse">•</span>
+          </span>
+        )}
+      </div>
+      <div className="text-gray-700 whitespace-pre-wrap">{content}</div>
+    </div>
+  );
+};
+
+/**
+ * Generic section renderer component
+ */
+const SectionRenderer = ({ section }) => {
+  switch (section.type) {
+    case "summary":
+      return (
+        <SummaryBlock content={section.content} complete={section.complete} />
+      );
+    case "final":
+      return (
+        <FinalBlock content={section.content} complete={section.complete} />
+      );
+    case "text":
+    default:
+      return <div className="whitespace-pre-wrap">{section.content}</div>;
+  }
+};
+
+/**
+ * Message content component that renders sections in order
+ */
+const MessageContent = ({ message }) => {
+  // For user messages or messages without sections, just render the text
+  if (
+    message.sender === "user" ||
+    !message.sections ||
+    message.sections.length === 0
+  ) {
+    return <div className="whitespace-pre-wrap">{message.text}</div>;
+  }
+
+  // For bot messages with sections, render each section in order
+  return (
+    <div>
+      {message.sections.map((section) => (
+        <React.Fragment key={section.id}>
+          <SectionRenderer section={section} />
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
+
+/**
  * ChatWindow component that handles message display and user input
  */
 const ChatWindow = () => {
   const [inputValue, setInputValue] = useState("");
-  const { messages, handleSendMessage, formatTime } = useMessageContext();
+  const { messages, handleSendMessage, formatTime, isStreaming } =
+    useMessageContext();
   const messagesEndRef = useRef(null);
 
   // Scroll to bottom of chat whenever messages change
@@ -70,9 +181,19 @@ const ChatWindow = () => {
                         : "bg-white text-gray-800 shadow"
                   }`}
                 >
-                  <div className="text-sm">{message.text}</div>
+                  {/* Use the MessageContent component to handle section rendering */}
+                  <div className="text-sm">
+                    <MessageContent message={message} />
+                  </div>
                   <div className="text-xs text-right mt-1 opacity-70">
                     {formatTime(message.timestamp)}
+                    {message.sender === "bot" &&
+                      isStreaming &&
+                      index === messages.length - 1 && (
+                        <span className="ml-2 text-blue-500 animate-pulse">
+                          •
+                        </span>
+                      )}
                   </div>
                 </div>
               </div>
@@ -91,6 +212,7 @@ const ChatWindow = () => {
             onKeyPress={handleKeyPress}
             placeholder="Ask a question about your documents..."
             className="flex-grow text-gray-900 shadow-sm p-2 border placeholder-gray-400 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition duration-150 ease-in-out bg-white"
+            disabled={isStreaming}
           />
         </div>
       </div>

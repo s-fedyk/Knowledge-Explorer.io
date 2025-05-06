@@ -36,7 +36,6 @@ class GraphRAGExtractor(TransformComponent):
         max_paths_per_chunk (int):
             The maximum number of paths to extract per chunk.
     """
-
     llm: LLM
     extract_prompt: PromptTemplate
     parse_fn: Callable

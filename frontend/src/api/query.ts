@@ -1,4 +1,3 @@
-// src/api/types.ts
 import type {
   QueryRequest,
   Source,
@@ -16,15 +15,194 @@ export const API_BASE_URL = "http://localhost:8000";
 export const API_VERSION = "v1";
 export const API_ENDPOINTS = {
   QUERY: `${API_BASE_URL}/api/${API_VERSION}/query`,
+  STREAM: `${API_BASE_URL}/api/${API_VERSION}/stream`,
   UPLOAD: `${API_BASE_URL}/api/${API_VERSION}/upload`,
   GRAPH: `${API_BASE_URL}/api/${API_VERSION}/graph`,
+  SESSION: `${API_BASE_URL}/api/${API_VERSION}/session`,
 };
 
 export class APIClient {
   /**
-   * Query the RAG system with a natural language question
+   * Query the RAG system with a natural language question and stream the response
+   * using the post-then-get pattern.
+   * @param queryRequest The query request object
+   * @param onToken Callback function that receives tokens as they arrive
+   * @param onComplete Callback function called when streaming is complete
+   * @param onError Callback function called when an error occurs
+   */
+  public async queryStream(
+    queryRequest: QueryRequest,
+    onToken: (token: string) => void,
+    onComplete?: () => void,
+    onError?: (error: ApiError) => void,
+  ): Promise<() => void> {
+    try {
+      // Step 1: POST to create a session and get a session ID
+      const response = await fetch(API_ENDPOINTS.QUERY, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(queryRequest),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw this.createApiError(errorData, response.status);
+      }
+
+      const data = await response.json();
+      const sessionId = data.session_id;
+
+      if (!sessionId) {
+        throw this.createApiError(
+          {
+            error: "invalid_response",
+            message: "No session ID returned from server",
+          },
+          500,
+        );
+      }
+
+      // Step 2: Connect to the stream endpoint with the session ID
+      const streamUrl = `${API_ENDPOINTS.STREAM}/${sessionId}`;
+      const eventSource = new EventSource(streamUrl, {
+        withCredentials: false,
+      });
+
+      // Handle incoming messages (tokens)
+      eventSource.onmessage = (event) => {
+        if (event.data === "[DONE]") {
+          // Stream is complete
+          eventSource.close();
+          // Clean up the session
+          this.deleteSession(sessionId).catch(console.error);
+          if (onComplete) onComplete();
+          return;
+        }
+
+        // Process and send token to callback
+        onToken(event.data);
+      };
+
+      // Handle errors
+      eventSource.onerror = (error) => {
+        eventSource.close();
+        // Try to clean up the session
+        this.deleteSession(sessionId).catch(console.error);
+        if (onError) {
+          onError(
+            this.createApiError(
+              {
+                error: "stream_error",
+                message: "Error in SSE stream connection",
+              },
+              500,
+            ),
+          );
+        }
+      };
+
+      // Return a function that can be used to cancel the stream
+      return () => {
+        eventSource.close();
+        this.deleteSession(sessionId).catch(console.error);
+      };
+    } catch (error) {
+      if (onError) {
+        onError(
+          this.createApiError(
+            {
+              error: "network_error",
+              message: `Failed to establish streaming connection: ${(error as Error).message}`,
+            },
+            500,
+          ),
+        );
+      }
+      // Return a no-op function since we already failed
+      return () => {};
+    }
+  }
+
+  public async getSources(sessionId: string): Promise<SourcesResponse> {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.SOURCES}/${sessionId}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw this.createApiError(errorData, response.status);
+      }
+
+      return (await response.json()) as SourcesResponse;
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      throw this.createApiError(
+        {
+          error: "network_error",
+          message: `Failed to retrieve sources: ${(error as Error).message}`,
+        },
+        500,
+      );
+    }
+  }
+
+  /**
+   * Deletes a session
+   * @param sessionId The session ID to delete
+   */
+  private async deleteSession(sessionId: string): Promise<void> {
+    try {
+      await fetch(`${API_ENDPOINTS.SESSION}/${sessionId}`, {
+        method: "DELETE",
+      });
+    } catch (error) {
+      console.error("Failed to delete session:", error);
+    }
+  }
+
+  /**
+   * Gets the status of a session
+   * @param sessionId The session ID to check
+   * @returns The session status
+   */
+  public async getSessionStatus(
+    sessionId: string,
+  ): Promise<{ status: string; session_id: string }> {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.SESSION}/${sessionId}`, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw this.createApiError(errorData, response.status);
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw this.createApiError(
+        {
+          error: "network_error",
+          message: `Failed to get session status: ${(error as Error).message}`,
+        },
+        500,
+      );
+    }
+  }
+
+  /**
+   * Query the RAG system with a natural language question (non-streaming version)
    * @param queryRequest The query request object
    * @returns Promise with the query response
+   * @deprecated Use queryStream for better user experience
    */
   public async query(queryRequest: QueryRequest): Promise<QueryResponse> {
     try {
@@ -48,76 +226,6 @@ export class APIClient {
         {
           error: "network_error",
           message: `Failed to query documents: ${(error as Error).message}`,
-        },
-        500,
-      );
-    }
-  }
-
-  /**
-   * Upload a document to the RAG system
-   * @param uploadRequest The upload request object containing the file
-   * @returns Promise with the upload response
-   */
-  public async uploadDocument(
-    uploadRequest: UploadDocumentRequest,
-  ): Promise<UploadDocumentResponse> {
-    try {
-      const formData = new FormData();
-      formData.append("file", uploadRequest.file);
-      const response = await fetch(API_ENDPOINTS.UPLOAD, {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw this.createApiError(errorData, response.status);
-      }
-      return (await response.json()) as UploadDocumentResponse;
-    } catch (error) {
-      if ((error as ApiError).status) {
-        throw error;
-      }
-      throw this.createApiError(
-        {
-          error: "network_error",
-          message: `Failed to upload document: ${(error as Error).message}`,
-        },
-        500,
-      );
-    }
-  }
-
-  /**
-   * Get graph data representing relationships between documents or concepts
-   * @param graphRequest The graph request parameters
-   * @returns Promise with the graph response containing nodes and relationships
-   */
-  public async getGraphData(
-    graphRequest: GraphRequest,
-  ): Promise<GraphResponse> {
-    try {
-      const response = await fetch(API_ENDPOINTS.GRAPH, {
-        method: "GET",
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw this.createApiError(errorData, response.status);
-      }
-      const result = (await response.json()) as GraphResponse;
-      console.log("got", result);
-
-      result.nodes = result.nodes.map((node) => ({ id: String(node.id) }));
-
-      return result;
-    } catch (error) {
-      if ((error as ApiError).status) {
-        throw error;
-      }
-      throw this.createApiError(
-        {
-          error: "network_error",
-          message: `Failed to retrieve graph data: ${(error as Error).message}`,
         },
         500,
       );

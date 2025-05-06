@@ -1,6 +1,6 @@
 from llama_index.core.base.response.schema import StreamingResponse
 from llama_index.core.query_engine import CustomQueryEngine
-from llama_index.core.llms import LLM, ChatResponseGen
+from llama_index.core.llms import LLM, ChatResponse, ChatResponseGen
 from llama_index.core import PropertyGraphIndex, Response
 from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
@@ -14,12 +14,6 @@ from .GraphRagStore import GraphRAGStore
 import re
 
 
-async def response_streamer(response_gen):
-    """Convert a response generator to a proper async generator."""
-    for token in response_gen:
-        yield f"{token}"
-
-
 class GraphRAGQueryEngine(CustomQueryEngine):
     graph_store: GraphRAGStore
     index: PropertyGraphIndex
@@ -29,48 +23,37 @@ class GraphRAGQueryEngine(CustomQueryEngine):
     def custom_query(self, query_str: str) -> StreamingResponse:
         """Process all community summaries to generate answers to a specific query."""
 
-        entities, source_nodes = self.get_entities(
-            query_str,
-            self.similarity_top_k
-        )
-
-        logger.info("Retrieved entities: %s", entities)
-        logger.info("Source nodes: %s", source_nodes)
-
-        logger.info(
-            "Graph store entity info: {%s}",
-            self.graph_store.entity_info
-        )
-
-        community_ids = self.retrieve_entity_communities(
-            self.graph_store.entity_info,
-            entities
-        )
-
-        community_summaries = self.graph_store.get_community_summaries()
-
-        logger.info("Summaries: {%s}", community_summaries)
-        community_answers = [
-            self.generate_answer_from_summary(community_summary, query_str)
-            for id, community_summary in community_summaries.items()
-            if id in community_ids
-        ]
-        logger.info("Community answers: {%s}", community_answers)
-
-        # Get the stream chat generator - this is already a generator, not a coroutine
-        response_gen = self.aggregate_answers_stream(community_answers)
+        response_gen = self.response_generator(query_str)
+        logger.info("Response generator created...")
 
         return StreamingResponse(response_gen=response_gen)
 
     async def acustom_query(self, query_str: str) -> StreamingResponse:
         """Async version that returns a StreamingResponse with a proper response generator."""
+        # Get the stream chat generator - this is already a generator, not a coroutine
+
+        entities, source_nodes = await self.aget_entities(
+            query_str,
+            self.similarity_top_k
+        )
+
+        response_gen = self.aresponse_generator(query_str, entities)
+
+        return StreamingResponse(
+            response_gen=response_gen,
+            source_nodes=source_nodes
+        )
+
+    def response_generator(self, query_str: str) -> Generator:
+        logger.info("Reponse generator!")
         entities, source_nodes = self.get_entities(
             query_str,
             self.similarity_top_k
         )
 
-        logger.info("Retrieved entities: %s", entities)
-        logger.info("Source nodes: %s", source_nodes)
+        logger.info("(generator) Retrieved entities: %s", entities)
+        logger.info("(generator) Source nodes: %s", source_nodes)
+
         logger.info(
             "Graph store entity info: {%s}",
             self.graph_store.entity_info
@@ -84,22 +67,105 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         community_summaries = self.graph_store.get_community_summaries()
 
         logger.info("Summaries: {%s}", community_summaries)
-        community_answers = [
-            self.generate_answer_from_summary(community_summary, query_str)
-            for id, community_summary in community_summaries.items()
-            if id in community_ids
-        ]
-        logger.info("Community answers: {%s}", community_answers)
+        community_answers = []
 
-        # Get the stream chat generator - this is already a generator, not a coroutine
+        for id, community_summary in community_summaries.items():
+            if id in community_ids:
+                community_answers.append("")
+                summary_generator = self.stream_answer_from_summary(
+                    community_summary,
+                    query_str
+                )
+
+                yield ChatResponse(message=ChatMessage(), delta="[SUMSTART]")
+                for tok in summary_generator:
+                    logger.info("summary token %s", tok)
+                    yield tok
+                    community_summary[-1] += tok
+                yield ChatResponse(message=ChatMessage(), delta="[SUMEND]")
+
+                community_summary = community_summary
+
+        logger.info("Community answers: {%s}", community_answers)
         response_gen = self.aggregate_answers_stream(community_answers)
 
-        return StreamingResponse(response_gen=response_gen)
+        yield ChatResponse(message=ChatMessage(), delta="[FINALSTART]")
+        for tok in response_gen:
+            yield tok
+        yield ChatResponse(message=ChatMessage(), delta="[FINALEND]")
+
+    async def aresponse_generator(self, query_str: str, entities) -> AsyncGenerator:
+        logger.info("Reponse generator!")
+        logger.info("(generator) Retrieved entities: %s", entities)
+
+        logger.info(
+            "Graph store entity info: {%s}",
+            self.graph_store.entity_info
+        )
+
+        community_ids = self.retrieve_entity_communities(
+            self.graph_store.entity_info,
+            entities
+        )
+
+        community_summaries = self.graph_store.get_community_summaries()
+
+        logger.info("Summaries: {%s}", community_summaries)
+        community_answers = []
+
+        for id, community_summary in community_summaries.items():
+            if id in community_ids:
+                summary_generator = self.stream_answer_from_summary(
+                    community_summary,
+                    query_str
+                )
+
+                summary = []
+
+                yield ChatResponse(message=ChatMessage(), delta="[SUMSTART]")
+                for tok in summary_generator:
+                    yield tok
+                    summary.append(tok.delta)
+                yield ChatResponse(message=ChatMessage(), delta="[SUMEND]")
+
+                # yield ChatResponse(message=ChatMessage(), delta="\n")
+                summary = ' '.join(summary)
+                community_answers.append(summary)
+
+        logger.info("Community answers: {%s}", community_answers)
+        response_gen = self.aggregate_answers_stream(community_answers)
+        for tok in response_gen:
+            yield tok
 
     def get_entities(self, query_str, similarity_top_k):
         nodes_retrieved = self.index.as_retriever(
             similarity_top_k=similarity_top_k
-        ).retrieve(query_str)
+        ).aretrieve(query_str)
+
+        entities = set()
+        pattern = (
+            r"^(\w+(?:\s+\w+)*)\s*->\s*([a-zA-Z\s]+?)\s*->\s*(\w+(?:\s+\w+)*)$"
+        )
+
+        for node in nodes_retrieved:
+            matches = re.findall(
+                pattern, node.text, re.MULTILINE | re.IGNORECASE
+            )
+
+            for match in matches:
+                subject = match[0]
+                obj = match[2]
+                entities.add(subject)
+                entities.add(obj)
+
+        return list(entities), nodes_retrieved
+
+    async def aget_entities(self, query_str, similarity_top_k):
+        """Async version of get_entities"""
+        # Use the async version of the retriever
+        retriever = self.index.as_retriever(similarity_top_k=similarity_top_k)
+        # Use the async retrieve method
+        nodes_retrieved = await retriever.aretrieve(query_str)
 
         entities = set()
         pattern = (
@@ -155,6 +221,22 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         cleaned_response = re.sub(r"^assistant:\s*", "", str(response)).strip()
         return cleaned_response
 
+    def stream_answer_from_summary(self, community_summary, query) -> Generator:
+        """Generate an answer from a community summary based on a given query using LLM."""
+        prompt = (
+            f"Given the community summary: {community_summary}, "
+            f"how would you answer the following query? Query: {query}"
+        )
+        messages = [
+            ChatMessage(role="system", content=prompt),
+            ChatMessage(
+                role="user",
+                content="I need an answer based on the above information.",
+            ),
+        ]
+        response = self._llm.stream_chat(messages)
+        return response
+
     def aggregate_answers(self, community_answers):
         """Aggregate individual community answers into a final, coherent response."""
         prompt = "Combine the following intermediate answers into a final, concise response."
@@ -184,5 +266,5 @@ class GraphRAGQueryEngine(CustomQueryEngine):
                 content=f"Intermediate answers: {community_answers}",
             ),
         ]
-
+        logger.info("Streaming started...")
         return self._llm.stream_chat(messages)

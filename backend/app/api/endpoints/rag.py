@@ -1,16 +1,14 @@
 import os
-from typing import List, Dict, Any, Optional, AsyncGenerator
+from typing import List, Dict, Any, AsyncGenerator
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 import re
-from llama_index.core.schema import NodeWithScore
-from llama_index.core.types import TokenGen
+import uuid
+import asyncio
 from pydantic import BaseModel
-from neo4j import GraphDatabase
 from pathlib import Path
 import json
 from fastapi.concurrency import run_in_threadpool
-from llama_index.core import Document
 from llama_index.core import VectorStoreIndex, StorageContext
 from llama_index.core import Settings
 
@@ -18,18 +16,19 @@ from llama_index.core.node_parser import SentenceSplitter
 
 from app.api.endpoints.GraphRAGQueryEngine import GraphRAGQueryEngine
 from .GraphRagExtractor import GraphRAGExtractor
-from .GraphRagStore import GraphRAGStore
 
 from llama_index.core.indices.property_graph import PropertyGraphIndex
 from llama_index.core import StorageContext
-from llama_index.core.indices.property_graph import (
-    PropertyGraphIndex,
-    TextToCypherRetriever,
-)
+
+
 from llama_index.readers.file import PDFReader
-from app.dependencies import get_rag_engine, get_vector_store, get_neo4j_driver, get_kg_extractor, get_graph_store
+from app.dependencies import get_rag_engine, get_vector_store, get_neo4j_driver, get_graph_store
 from app.logger import logger
 from app.config import settings
+
+
+active_sessions = {}
+session_sources = {}
 
 KG_TRIPLET_EXTRACT_TMPL = """
 -Goal-
@@ -139,33 +138,59 @@ def parse_fn(response_str: str) -> Any:
         return entities, relationships
 
 
+# Keep your existing models
 class QueryRequest(BaseModel):
     query: str
     similarity_top_k: int = 3
 
 
 class QueryResponse(BaseModel):
-    answer: TokenGen
-    sources: List[str]
+    session_id: str
+
+
+@router.get("/sources/{session_id}")
+async def get_session_sources(session_id: str):
+    """
+    Get the source nodes for a query session
+    """
+    logger.info(f"Retrieving sources for session: {session_id}")
+
+    if session_id not in active_sessions:
+        raise HTTPException(
+            status_code=404, detail="Session not found or expired"
+        )
+
+    session = active_sessions[session_id]
+
+    # Check if sources are available for this session
+    if "sources" not in session:
+        raise HTTPException(
+            status_code=400, detail="Sources not available for this session yet"
+        )
+
+    # Extract source information in a more consumable format
+    formatted_sources = []
+    for source in session["sources"]:
+        formatted_sources.append(source.node_id)
+
+    return {
+        "session_id": session_id,
+        "sources": formatted_sources
+    }
 
 
 async def data_streamer(response_gen) -> AsyncGenerator[str, None]:
     """
     Convert the LLM streaming generator to a proper FastAPI StreamingResponse format.
-
-    Args:
-        response_gen: Generator from LLM stream_chat
-
-    Yields:
-        Formatted string chunks for SSE (Server-Sent Events)
     """
+    logger.info(response_gen)
     try:
-        for response in response_gen:
+        async for response in response_gen:
             token = str(response.delta)
             logger.info(token)
 
-            if token:
-                yield f"data: {token}\n\n"
+            yield f"data: {token}\n\n"
+            await asyncio.sleep(0.01)
 
         # Signal completion
         yield "data: [DONE]\n\n"
@@ -175,41 +200,135 @@ async def data_streamer(response_gen) -> AsyncGenerator[str, None]:
         yield "data: [DONE]\n\n"
 
 
-@router.post("/query")
-async def query_documents(
+@router.post("/query", response_model=QueryResponse)
+async def create_query_session(
     request: QueryRequest,
     index: VectorStoreIndex = Depends(get_rag_engine),
     graph_store=Depends(get_graph_store),
 ):
     """
-    Query the RAG system with a natural language question and stream the response
+    Create a query session and return a session ID to connect to the streaming endpoint
     """
     try:
-        # Set up the graph index and query engine
+        session_id = str(uuid.uuid4())
+        logger.info(
+            f"Creating query session: {session_id} for query: {request.query}")
+
         storage_ctx = StorageContext.from_defaults(
             property_graph_store=graph_store,
             vector_store=get_vector_store()
         )
         pg_index = PropertyGraphIndex.from_existing(
-            property_graph_store=graph_store,
-            storage_context=storage_ctx,
+            property_graph_store=graph_store, storage_context=storage_ctx,
         )
         query_engine = GraphRAGQueryEngine(
             graph_store=graph_store,
             index=pg_index,
         )
 
-        # Get the StreamingResponse directly - no need for run_in_threadpool
-        # because aquery returns a StreamingResponse object, not a coroutine
-        streaming_response = await run_in_threadpool(query_engine.query, request.query)
+        active_sessions[session_id] = {
+            "status": "processing",
+            "query": request.query,
+            "query_engine": query_engine,
+        }
 
-        # Pass the response_gen from the StreamingResponse to our data_streamer
+        return {"session_id": session_id}
+    except Exception as e:
+        logger.exception("Error creating query session")
+        raise HTTPException(
+            status_code=500, detail=f"Query session creation error: {str(e)}")
+
+
+class SessionStatus(BaseModel):
+    status: str
+    session_id: str
+
+
+@router.get("/stream/{session_id}")
+async def stream_query_response(session_id: str):
+    """
+    Connect to a streaming endpoint using the session ID
+    """
+    logger.info(f"Request to connect to stream for session: {session_id}")
+
+    if session_id not in active_sessions:
+        raise HTTPException(
+            status_code=404, detail="Session not found or expired")
+
+    session = active_sessions[session_id]
+    query_engine = session["query_engine"]
+    query = session["query"]
+
+    try:
+        logger.info(f"Executing query for session {session_id}: {query}")
+        streaming_response = await query_engine.acustom_query(query)
+
+        # Store the sources in the session data
+        session["sources"] = streaming_response.source_nodes
+        session["status"] = "streaming"
+
+        def cleanup_session():
+            try:
+                session["status"] = "completed"
+            except Exception as e:
+                logger.exception(f"Error cleaning up session {session_id}")
+
         return StreamingResponse(
             content=data_streamer(streaming_response.response_gen),
-            media_type='text/event-stream'
+            media_type='text/event-stream',
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query error: {str(e)}")
+        logger.exception(f"Error streaming response for session {session_id}")
+        # Mark session as failed
+        session["status"] = "failed"
+        session["error"] = str(e)
+        raise HTTPException(
+            status_code=500, detail=f"Streaming error: {str(e)}")
+
+
+@router.get("/session/{session_id}", response_model=SessionStatus)
+async def get_session_status(session_id: str):
+    """
+    Get the status of a query session
+    """
+    if session_id not in active_sessions:
+        raise HTTPException(
+            status_code=404, detail="Session not found or expired")
+
+    session = active_sessions[session_id]
+    return {
+        "status": session["status"],
+        "session_id": session_id
+    }
+
+
+@router.delete("/session/{session_id}")
+async def delete_session(session_id: str):
+    """
+    Manually delete a session when client is done
+    """
+    if session_id not in active_sessions:
+        raise HTTPException(
+            status_code=404, detail="Session not found or expired")
+
+    del active_sessions[session_id]
+    return {"status": "deleted", "session_id": session_id}
+
+# Implement a background task to clean up old sessions
+# This could be done with a scheduled task using something like APScheduler
+
+
+def cleanup_old_sessions():
+    """
+    Remove completed or stale sessions
+    """
+    # This could be implemented as a background task that runs periodically
+    # For now, we'll just have the manual endpoint above
+    pass
 
 
 class UploadResponse(BaseModel):
