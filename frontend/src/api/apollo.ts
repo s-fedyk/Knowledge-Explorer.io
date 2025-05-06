@@ -19,12 +19,14 @@ export const client = new ApolloClient({
 
 export interface Node {
   id: string;
+  caption?: string;
 }
 
 export interface Relationship {
   id: string;
   from: string;
   to: string;
+  caption?: string;
 }
 
 export interface NodeAndRelationship {
@@ -46,11 +48,13 @@ export const NODES_WITH_RELATIONS_QUERY = gql`
     nodesWithRelations(ids: $ids) {
       nodes {
         id
+        caption
       }
       rels {
         id
         from
         to
+        caption
       }
     }
   }
