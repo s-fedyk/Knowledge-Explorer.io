@@ -96,7 +96,6 @@ class GraphRAGExtractor(TransformComponent):
 
         text = clean_text(text)
         node.set_content(text)
-        logger.info("content is: %s", text)
 
         try:
             llm_response = await self.llm.apredict(

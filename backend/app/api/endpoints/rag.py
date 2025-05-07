@@ -346,20 +346,29 @@ async def upload_document(
     """
     try:
         logger.info("Uploading document: %s", file.filename)
+        assert (file.filename)
+
         os.makedirs(settings.data_path, exist_ok=True)
 
-        file_path = os.path.join(settings.data_path, file.filename)
+        # Generate a UUID for the file
+        original_extension = os.path.splitext(file.filename)[1]
+        storage_filename = f"{str(uuid.uuid4())}{original_extension}"
+
+        file_path = os.path.join(settings.data_path, storage_filename)
+
         logger.debug("Saving uploaded file to %s", file_path)
         with open(file_path, "wb") as f:
             content = await file.read()
             f.write(content)
         logger.info("File saved: %s", file_path)
 
-        background_tasks.add_task(process_document, file_path, file.filename)
-        logger.info("Background task added for processing %s", file.filename)
+        background_tasks.add_task(
+            process_document, file_path, storage_filename)
+        logger.info("Background task added for processing %s",
+                    storage_filename)
 
         return {
-            "filename": file.filename,
+            "filename": storage_filename,
             "status": "Document uploaded and being processed"
         }
     except Exception as e:

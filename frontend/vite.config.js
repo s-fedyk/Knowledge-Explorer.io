@@ -16,6 +16,7 @@ export default defineConfig({
       // These must match your tsconfig “paths” settings
       "@api": path.resolve(__dirname, "src/api"),
       "@types": path.resolve(__dirname, "src/types"),
+      "@context": path.resolve(__dirname, "src/context"),
     },
   },
 });
