@@ -128,6 +128,14 @@ async def stream_query_response(
 
     try:
         logger.info(f"Executing query {query_id}: {query}")
+
+        index_info = await mongoClient.get_index_info("index")
+
+        if index_info:
+            if index_info["entity_info"]:
+                graph_store.entity_info = index_info["entity_info"]
+                graph_store.community_summary = index_info["community_info"]
+
         storage_ctx = StorageContext.from_defaults(
             property_graph_store=graph_store,
             vector_store=vector_store,

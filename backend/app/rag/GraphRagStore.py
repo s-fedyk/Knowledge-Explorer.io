@@ -46,8 +46,15 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
             nx_graph, community_hierarchical_clusters
         )
         self._summarize_communities(community_info)
+
         logger.info(
-            "Communities successfully built, {%s}", self.community_summary)
+            "entity_info={%s}",
+            self.entity_info
+        )
+        logger.info(
+            "community_summary={%s}",
+            self.community_summary
+        )
 
     def _create_nx_graph(self):
         """Converts internal graph representation to NetworkX graph."""

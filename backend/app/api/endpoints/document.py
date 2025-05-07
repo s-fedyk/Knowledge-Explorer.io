@@ -17,6 +17,7 @@ from app.dependencies import get_vector_store, get_neo4j_driver, get_graph_store
 from app.logger import logger
 from app.config import settings
 from app.rag.GraphRagExtractor import GraphRAGExtractor
+from app.client.mongoClient import mongoClient
 
 
 router = APIRouter(tags=["document"])
@@ -55,6 +56,7 @@ async def upload_document(
 
         background_tasks.add_task(
             process_document, file_path, storage_filename)
+
         logger.info("Background task added for processing %s",
                     storage_filename)
 
@@ -144,9 +146,13 @@ async def process_document(file_path: str, filename: str):
 
         logger.info(index.property_graph_store.get_triplets())
 
+        # Rebuild communities and update the shared db store.
         index.property_graph_store.build_communities()
 
-        index.storage_context.persist(persist_dir="./storage")
+        community_summary = index.property_graph_store.community_summary
+        entity_info = index.property_graph_store.entity_info
+
+        await mongoClient.update_index_info("index", entity_info, community_summary)
 
         logger.info("Property Graph Index created for %s", filename)
 

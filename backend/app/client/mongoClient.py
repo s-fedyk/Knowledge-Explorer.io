@@ -11,6 +11,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class IndexInfo(BaseModel):
+    uuid: str
+    # An entity belongs to a list of communities
+    entity_info: Dict[str, list[int]]
+    community_info: Dict[int, str]
+
+
 class QueryData(BaseModel):
     query_id: str
     status: str
@@ -35,7 +42,15 @@ class MongoDBClient:
         self.db = None
         self.queries_collection = None
         self.documents_collection = None
+        self.index_info_collection = None
         self.is_connected = False
+
+    async def close(self):
+        """Close MongoDB connection"""
+        if self.client:
+            self.client.close()
+            self.is_connected = False
+            logger.info("Disconnected from MongoDB")
 
     async def connect(self):
         """Connect to MongoDB and initialize collections"""
@@ -54,6 +69,7 @@ class MongoDBClient:
             self.db = self.client[db_name]
             self.queries_collection = self.db.queries
             self.documents_collection = self.db.documents    # Collection for S3 documents
+            self.index_info_collection = self.db.index_info_collection
 
             # Create indexes for queries
             await self.queries_collection.create_index("query_id", unique=True)
@@ -63,6 +79,9 @@ class MongoDBClient:
             # Create indexes for documents
             await self.documents_collection.create_index("uuid", unique=True)
             await self.documents_collection.create_index("name")
+
+            # the index is for a specific document.
+            await self.index_info_collection.create_index("uuid", unique=True)
 
             self.is_connected = True
             logger.info(
@@ -229,12 +248,67 @@ class MongoDBClient:
             "sources_deleted": sources_result.deleted_count
         }
 
-    async def close(self):
-        """Close MongoDB connection"""
-        if self.client:
-            self.client.close()
-            self.is_connected = False
-            logger.info("Disconnected from MongoDB")
+    async def get_index_info(self, index_name: str) -> Optional[Dict[str, Any]]:
+        """Retrieve index info by name"""
+        index_info = await self.db.index_info_collection.find_one({"index_name": index_name})
+        logger.info(
+            "Retrieved index_info with name=%s, contents=%s",
+            index_name,
+            index_info
+        )
+        return index_info
+
+    async def update_index_info(self, index_name: str, entity_info: Dict[str, list[int]],
+                                community_info: Dict[int, str]) -> Optional[Dict[str, Any]]:
+        """Create or update index info with the given entity and community information"""
+        now = datetime.utcnow()
+
+        community_info_stringified = {
+            str(k): v for k, v in community_info.items()
+        }
+
+        # Build the update data
+        update_data = {
+            "uuid": index_name,
+            "entity_info": entity_info,
+            "community_info": community_info_stringified,
+            "updated_at": now
+        }
+
+        # Use upsert to handle both creation and updates
+        result = await self.index_info_collection.update_one(
+            {"index_name": index_name},
+            {
+                "$set": update_data,
+                # Only set created_at if document is being inserted
+                "$setOnInsert": {"created_at": now}
+            },
+            upsert=True
+        )
+
+        logger.info(
+            "Upserted index_info with name=%s, was_inserted=%s",
+            index_name,
+            result.upserted_id is not None
+        )
+
+        return await self.get_index_info(index_name)
+
+    async def delete_index_info(self, index_name: str) -> bool:
+        """Delete an index info by name"""
+        result = await self.index_info_collection.delete_one({"index_name": index_name})
+        logger.info(
+            "Deleted index_info with name=%s, deleted_count=%s",
+            index_name, result.deleted_count
+        )
+        return result.deleted_count > 0
+
+    async def list_index_infos(self, skip: int = 0, limit: int = 50) -> List[Dict[str, Any]]:
+        """List index infos with pagination"""
+        cursor = self.index_info_collection.find().sort(
+            "created_at", -1).skip(skip).limit(limit)
+        index_infos = await cursor.to_list(length=limit)
+        return index_infos
 
 
 # Create a singleton instance
