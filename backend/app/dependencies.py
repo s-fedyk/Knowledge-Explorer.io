@@ -44,7 +44,6 @@ def get_graph_store() -> GraphRAGStore:
         password=settings.neo4j_password,
         url=settings.neo4j_uri,
     )
-    store.build_communities()
     return store
 
 

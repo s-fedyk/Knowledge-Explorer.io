@@ -17,6 +17,9 @@ from llama_index.core.indices.property_graph.utils import (
 from llama_index.core.async_utils import run_jobs
 from typing import Any, List, Callable, Optional, Union, Dict
 import asyncio
+import re
+
+from app.logger import logger
 
 
 class GraphRAGExtractor(TransformComponent):
@@ -81,6 +84,20 @@ class GraphRAGExtractor(TransformComponent):
         assert hasattr(node, "text")
 
         text = node.get_content(metadata_mode="llm")
+
+        def clean_text(text_to_clean):
+            # Lots of weird spacing.
+            without_special_whitespace = re.sub(
+                r'[\n\r\t\f\v]+', ' ', text_to_clean)
+
+            normalized = re.sub(r'\s+', ' ', without_special_whitespace)
+
+            return normalized.strip()
+
+        text = clean_text(text)
+        node.set_content(text)
+        logger.info("content is: %s", text)
+
         try:
             llm_response = await self.llm.apredict(
                 self.extract_prompt,
