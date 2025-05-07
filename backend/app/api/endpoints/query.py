@@ -11,6 +11,8 @@ from llama_index.core import StorageContext
 from app.dependencies import get_rag_engine, get_vector_store, get_graph_store
 from app.logger import logger
 
+from app.client.mongoClient import mongoClient
+
 active_queries = {}
 query_sources = {}
 
@@ -35,27 +37,29 @@ async def get_query_sources(query_id: str):
     """
     logger.info(f"Retrieving sources for query: {query_id}")
 
-    if query_id not in active_queries:
+    query_data = await mongoClient.get_query(query_id)
+
+    if not query_data:
         raise HTTPException(
             status_code=404, detail="Query not found or expired"
         )
 
-    query_data = active_queries[query_id]
+    logger.info(
+        "get_query_sources(), query_id=%s, query_data=%s",
+        query_id,
+        query_data
+    )
 
     # Check if sources are available for this query
-    if "sources" not in query_data:
+    if "sources" not in query_data or query_data["sources"] == None:
         raise HTTPException(
             status_code=400, detail="Sources not available for this query yet"
         )
 
     # Extract source information in a more consumable format
-    formatted_sources = []
-    for source in query_data["sources"]:
-        formatted_sources.append(source.node_id)
-
     return {
         "query_id": query_id,
-        "sources": formatted_sources
+        "sources": query_data["sources"]
     }
 
 
@@ -80,11 +84,7 @@ async def data_streamer(response_gen) -> AsyncGenerator[str, None]:
 
 
 @router.post("/query", response_model=QueryResponse)
-async def create_query(
-    request: QueryRequest,
-    vector_store: VectorStoreIndex = Depends(get_vector_store),
-    graph_store=Depends(get_graph_store),
-):
+async def create_query(request: QueryRequest):
     """
     Create a query and return a query ID to connect to the streaming endpoint
     """
@@ -93,24 +93,8 @@ async def create_query(
         logger.info(
             f"Creating query: {query_id} for input: {request.query}")
 
-        storage_ctx = StorageContext.from_defaults(
-            property_graph_store=graph_store,
-            vector_store=vector_store,
-        )
-        pg_index = PropertyGraphIndex.from_existing(
-            property_graph_store=graph_store,
-            storage_context=storage_ctx,
-        )
-        query_engine = GraphRAGQueryEngine(
-            graph_store=graph_store,
-            index=pg_index,
-        )
-
-        active_queries[query_id] = {
-            "status": "processing",
-            "query": request.query,
-            "query_engine": query_engine,
-        }
+        # throws mongo server error on failure. Force client to retry?
+        await mongoClient.create_query(query_id, request.query)
 
         return {"query_id": query_id}
     except Exception as e:
@@ -125,27 +109,49 @@ class QueryStatus(BaseModel):
 
 
 @router.get("/stream/{query_id}")
-async def stream_query_response(query_id: str):
+async def stream_query_response(
+        query_id: str,
+        vector_store=Depends(get_vector_store),
+        graph_store=Depends(get_graph_store)):
     """
     Connect to a streaming endpoint using the query ID
     """
     logger.info(f"Request to connect to stream for query: {query_id}")
-
-    if query_id not in active_queries:
+    query_data = await mongoClient.get_query(query_id)
+    if not query_data:
         raise HTTPException(
-            status_code=404, detail="Query not found or expired")
+            status_code=404,
+            detail="Query not found or expired"
+        )
 
-    query_data = active_queries[query_id]
-    query_engine = query_data["query_engine"]
     query = query_data["query"]
 
     try:
         logger.info(f"Executing query {query_id}: {query}")
+        storage_ctx = StorageContext.from_defaults(
+            property_graph_store=graph_store,
+            vector_store=vector_store,
+        )
+        pg_index = PropertyGraphIndex.from_existing(
+            property_graph_store=graph_store,
+            storage_context=storage_ctx,
+        )
+        query_engine = GraphRAGQueryEngine(
+            graph_store=graph_store,
+            index=pg_index,
+        )
+
         streaming_response = await query_engine.acustom_query(query)
 
         # Store the sources in the query data
-        query_data["sources"] = streaming_response.source_nodes
-        query_data["status"] = "streaming"
+        formatted_sources = []
+        for source in streaming_response.source_nodes:
+            formatted_sources.append(source.node_id)
+
+        await mongoClient.store_query_sources(
+            query_id,
+            formatted_sources,
+        )
 
         def cleanup_query():
             try:

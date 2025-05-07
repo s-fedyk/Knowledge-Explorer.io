@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     neo4j_password: str = os.getenv("NEO4J_PASSWORD", "password")
     neo4j_database: str = os.getenv("NEO4J_DATABASE", "neo4j")
 
+    mongo_url: str = os.getenv(
+        "MONGODB_URI",
+        "mongodb://admin:password@mongodb:27017/"
+    )
+    mongo_db_name: str = os.getenv("MONGODB_DB_NAME", "rag_app")
+
     # Base paths
     data_path: str = os.getenv("DATA_PATH", "./data/documents")
     vectorstore_path: str = os.getenv("VECTORSTORE_PATH", "./vectorstore")

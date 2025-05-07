@@ -3,12 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import document
 from app.api.endpoints import query
 from app.api.endpoints import gql
+from contextlib import asynccontextmanager
+from app.client.mongoClient import mongoClient
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # everything before the yield executes before the app starts up.
+    await mongoClient.connect()
+    yield
 
 app = FastAPI(
     title="RAG API",
     description="Retrieval-Augmented Generation API using LlamaIndex",
     version="0.1.0",
+    lifespan=lifespan
 )
+
 
 # Add CORS middleware
 app.add_middleware(
@@ -18,6 +29,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Include routers
 app.include_router(document.router, prefix="/api/v1")
