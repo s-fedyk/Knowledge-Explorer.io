@@ -134,7 +134,7 @@ class Query:
                         id=rec["id"],
                         caption=rec["caption"],
                         description=rec["entity_description"] if "entity_description" in rec.keys(
-                        ) else ""
+                        ) else rec["text"]  # We only have entities or text nodes.
                     )
                 )
 
