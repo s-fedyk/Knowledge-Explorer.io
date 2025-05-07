@@ -3,6 +3,7 @@ import ChatWindow from "./ChatWindow";
 import FileView from "./FileView";
 import GraphView from "./GraphView";
 import { useTabContext } from "@context/TabContext";
+import { GraphViewProvider } from "@context/GraphViewContext";
 
 /**
  * TabView component for managing multiple tabs, including chat and file viewers
@@ -21,7 +22,11 @@ const TabView = () => {
       case "file":
         return <FileView file={tab} />;
       case "graph":
-        return <GraphView nodes={tab.nodes} />;
+        return (
+          <GraphViewProvider>
+            <GraphView nodes={tab.nodes} />
+          </GraphViewProvider>
+        );
       default:
         return <ChatWindow />;
     }
