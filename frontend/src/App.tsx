@@ -182,7 +182,8 @@ function App() {
     <ApolloProvider client={client}>
       <TabProvider>
         <MessageProvider>
-          <div className="flex w-screen h-screen bg-gray-100">
+          {/* Use h-screen but remove w-screen */}
+          <div className="flex h-screen w-screen bg-gray-100">
             {/* Navigation Sidebar Component */}
             <NavSidebar
               chatHistories={chatHistories}
@@ -196,8 +197,10 @@ function App() {
               onFileRemove={removeFile}
             />
 
-            {/* TabView with Chat and File tabs */}
-            <TabView />
+            {/* TabView with Chat and File tabs - no overflow-hidden here */}
+            <div className="flex-1">
+              <TabView />
+            </div>
           </div>
         </MessageProvider>
       </TabProvider>

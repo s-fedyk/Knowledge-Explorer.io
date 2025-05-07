@@ -27,7 +27,7 @@ function NavSidebar({
         initialDirectory={initialDirectory}
         initialActiveFile={initialActiveFile}
       >
-        <div className="w-64 h-screen bg-white shadow-md flex flex-col border-r border-gray-300">
+        <div className="w-64 h-full bg-white shadow-md flex flex-col border-r border-gray-300">
           <div className="basis-2/5 overflow-y-auto border-gray-400">
             <ChatHistorySelector />
           </div>

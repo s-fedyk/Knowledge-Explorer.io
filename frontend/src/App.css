@@ -40,3 +40,11 @@
   height: auto !important; /* or 100% if you want to stretch vertically too */
   object-fit: contain;
 }
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+}

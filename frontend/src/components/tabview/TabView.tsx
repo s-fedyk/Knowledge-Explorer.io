@@ -4,7 +4,6 @@ import FileView from "./FileView";
 import GraphView from "./GraphView";
 import { useTabContext } from "@context/TabContext";
 import { GraphViewProvider } from "@context/GraphViewContext";
-
 /**
  * TabView component for managing multiple tabs, including chat and file viewers
  * @param {Object} props - Component props
@@ -15,7 +14,6 @@ import { GraphViewProvider } from "@context/GraphViewContext";
 const TabView = () => {
   const { tabs, activeTabId, handleTabClick, handleCloseTab, getTabIcon } =
     useTabContext();
-
   // Render tab content based on type
   const renderTabContent = (tab) => {
     switch (tab.type) {
@@ -31,7 +29,6 @@ const TabView = () => {
         return <ChatWindow />;
     }
   };
-
   return (
     <div className="h-full w-full flex flex-col bg-gray-200 overflow-hidden">
       {/* Tabs navigation */}
@@ -52,9 +49,8 @@ const TabView = () => {
           </div>
         ))}
       </div>
-
-      {/* Tab content area */}
-      <div className="flex-grow overflow-auto">
+      {/* Tab content area - changed from flex-grow to flex-1 and overflow-auto */}
+      <div className="flex-1 overflow-auto">
         {tabs.map((tab) => (
           <div
             key={tab.id}
@@ -67,5 +63,4 @@ const TabView = () => {
     </div>
   );
 };
-
 export default TabView;
