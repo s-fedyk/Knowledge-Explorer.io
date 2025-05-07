@@ -24,3 +24,6 @@ scipy
 future
 asyncio
 nest_asyncio
+pymongo
+dnspython
+motor

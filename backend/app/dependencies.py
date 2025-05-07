@@ -3,11 +3,10 @@ from functools import lru_cache
 from typing import Dict, Any, Optional
 from neo4j import GraphDatabase
 
-from app.api.endpoints.GraphRagStore import GraphRAGStore
+from app.rag.GraphRagStore import GraphRAGStore
 
 from llama_index.core import VectorStoreIndex, StorageContext
 
-from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
 from llama_index.vector_stores.neo4jvector import Neo4jVectorStore
 from llama_index.llms.openai import OpenAI
 from llama_index.core.node_parser import SentenceSplitter

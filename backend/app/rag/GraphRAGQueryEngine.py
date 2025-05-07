@@ -1,10 +1,10 @@
 from llama_index.core.base.response.schema import StreamingResponse
 from llama_index.core.query_engine import CustomQueryEngine
-from llama_index.core.llms import LLM, ChatResponse, ChatResponseGen
-from llama_index.core import PropertyGraphIndex, Response
+from llama_index.core.llms import LLM, ChatResponse
+from llama_index.core import PropertyGraphIndex
 from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
-from typing import List, Any, Generator, AsyncGenerator
+from typing import Generator, AsyncGenerator
 
 from pydantic import PrivateAttr
 from app.logger import logger
@@ -29,9 +29,6 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         return StreamingResponse(response_gen=response_gen)
 
     async def acustom_query(self, query_str: str) -> StreamingResponse:
-        """Async version that returns a StreamingResponse with a proper response generator."""
-        # Get the stream chat generator - this is already a generator, not a coroutine
-
         entities, source_nodes = await self.aget_entities(
             query_str,
             self.similarity_top_k

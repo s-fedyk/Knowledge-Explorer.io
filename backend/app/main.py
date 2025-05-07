@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import rag
+from app.api.endpoints import document
+from app.api.endpoints import query
 from app.api.endpoints import gql
 
 app = FastAPI(
@@ -19,7 +20,8 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(rag.router, prefix="/api/v1")
+app.include_router(document.router, prefix="/api/v1")
+app.include_router(query.router, prefix="/api/v1")
 app.include_router(gql.router, prefix="/graphql")
 
 
