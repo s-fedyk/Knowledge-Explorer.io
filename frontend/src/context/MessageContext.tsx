@@ -402,8 +402,7 @@ export const MessageProvider = ({ children }) => {
           // Process the token and get clean text
           accumulatedText = processTokenStream(token, botMessageIndex);
 
-          // Update the main message text
-          updateMessage(botMessageIndex, accumulatedText, null);
+          // Update the main message text updateMessage(botMessageIndex, accumulatedText, null);
         },
         // Completion callback
         async (sessionId) => {

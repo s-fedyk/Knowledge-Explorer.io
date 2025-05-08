@@ -1,0 +1,100 @@
+// TabIcon.jsx
+import React from "react";
+
+/**
+ * TabIcon component that renders different icons based on type with glow effects when selected
+ * @param {Object} props - Component props
+ * @param {string} props.type - Icon type ("chat", "file", or "graph")
+ * @param {boolean} props.active - Whether the tab is selected
+ * @param {function} props.onClick - Click handler function
+ */
+function TabIcon({ type, active }) {
+  // Define the accent color based on type
+
+  const getAccentColor = () => {
+    switch (type) {
+      case "chat":
+        return "text-blue-500";
+      case "file":
+        return "text-red-500";
+      case "graph":
+        return "text-purple-500";
+      default:
+        return "text-gray-500";
+    }
+  };
+
+  // Get the accent color
+  const accentColor = getAccentColor();
+
+  return (
+    <div
+      className={`
+         rounded-md cursor-pointer transition-all duration-50
+        ${active ? "bg-gray-100" : "hover:bg-gray-50"}
+      `}
+    >
+      {type === "chat" && (
+        <svg
+          className={`
+            w-5 h-5 transition-all duration-50
+            ${active ? `${accentColor} filter drop-shadow-sm` : "text-gray-400"}
+          `}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={active ? 2.5 : 2}
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
+        </svg>
+      )}
+
+      {type === "file" && (
+        <svg
+          className={`
+            w-5 h-5 transition-all duration-50
+            ${active ? `${accentColor} filter drop-shadow-sm` : "text-gray-400"}
+          `}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={active ? 2.5 : 2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      )}
+
+      {type === "graph" && (
+        <svg
+          className={`
+            w-5 h-5 transition-all duration-50
+            ${active ? `${accentColor} filter drop-shadow-sm` : "text-gray-400"}
+          `}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={active ? 2.5 : 2}
+            d="M17 15l2-2m0 0l-2-2m2 2H9m11 4l-4 4m0 0l-4-4m4 4V3"
+          />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+export default TabIcon;

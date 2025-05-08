@@ -16,7 +16,9 @@ function ChatHistorySelector() {
     <div className="flex flex-col h-full">
       {/* Header stays fixed */}
       <div className="flex justify-center items-center p-2 border-b border-gray-200">
-        <h2 className="text-gray-400 text-lg font-bold">Knowledge Explorer</h2>
+        <h2 className="p-2 text-gray-400 text-lg font-bold">
+          Knowledge Explorer
+        </h2>
       </div>
       <div className="flex-1 overflow-y-auto">
         <ul className="">
