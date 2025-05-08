@@ -16,17 +16,18 @@ class DocumentsCollection(MongoDBBase):
 
         self.collection = self.db.documents
 
+        # This table's purpose is to store metadata about files
+        # We have chunks that reference uuids in the graph db.
         await self.collection.create_index("uuid", unique=True)
         await self.collection.create_index("name")
 
     @log_db_operation
-    async def create_document(self, doc_uuid: str, name: str, url: str) -> Dict[str, Any]:
+    async def create_document(self, doc_uuid: str, name: str) -> Dict[str, Any]:
         """Create a new document record pointing to S3"""
         now = datetime.utcnow()
         document_data = {
             "uuid": doc_uuid,
             "name": name,
-            "url": url,
             "created_at": now,
             "updated_at": now
         }

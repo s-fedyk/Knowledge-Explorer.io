@@ -1,5 +1,6 @@
 import boto3
 import os
+from pathlib import Path
 from app.config import settings
 from botocore.exceptions import ClientError, NoCredentialsError
 import logging
@@ -51,7 +52,7 @@ class S3Client:
             raise ConnectionError(
                 f"Unexpected error during initialization: {str(e)}")
 
-    def upload_pdf(self, file_path: str, object_name=None):
+    def upload_file(self, file_path: Path, object_name=None):
         """
         Upload a PDF file to the S3 bucket
 
@@ -63,14 +64,9 @@ class S3Client:
         if object_name is None:
             object_name = os.path.basename(file_path)
 
-        # Ensure we're only handling PDF files
-        if not file_path.lower().endswith('.pdf'):
-            self.logger.error(f"File {file_path} is not a PDF")
-            return False
-
         try:
             self.s3_client.upload_file(
-                file_path,
+                str(file_path),
                 self.bucket_name,
                 object_name,
                 ExtraArgs={'ContentType': 'application/pdf'}

@@ -18,7 +18,7 @@ from app.dependencies import get_vector_store, get_neo4j_driver, get_graph_store
 from app.logger import logger
 from app.config import settings
 from app.rag.GraphRagExtractor import GraphRAGExtractor
-from app.client.mongo_client import get_index_info_collection
+from app.client.mongo_client import get_documents_collection, get_index_info_collection
 
 
 router = APIRouter(tags=["document"])
@@ -56,7 +56,10 @@ async def upload_document(
         logger.info("File saved: %s", file_path)
 
         background_tasks.add_task(
-            process_document, file_path, storage_filename)
+            process_document,
+            Path(file_path),
+            file.filename
+        )
 
         logger.info("Background task added for processing %s",
                     storage_filename)
@@ -107,15 +110,16 @@ def parse_fn(response_str: str) -> Any:
         return entities, relationships
 
 
-async def process_document(file_path: str, filename: str):
+async def process_document(file_path: Path, filename: str):
     """Background task to process uploaded documents"""
     logger.info("Starting document processing: %s", filename)
     try:
-        loader = PDFReader()
-        documents = loader.load_data(file=Path(file_path))
+        # we use a uuid to identify the file, so there
+        # are no collisions in storage.
+        doc_uuid = file_path.stem
 
-        s3_client = get_s3_client()
-        s3_client.upload_pdf(file_path)
+        loader = PDFReader()
+        documents = loader.load_data(file=file_path)
 
         splitter = SentenceSplitter(
             chunk_size=1024,
@@ -156,8 +160,18 @@ async def process_document(file_path: str, filename: str):
         community_summary = index.property_graph_store.community_summary
         entity_info = index.property_graph_store.entity_info
 
-        index_info_collection = await get_index_info_collection()
+        # index is built by this point, we can upload the document
+        # to retrieve
+        s3_client = get_s3_client()
+        s3_client.upload_file(file_path)
 
+        documents_collection = await get_documents_collection()
+        await documents_collection.create_document(
+            doc_uuid=doc_uuid,
+            name=filename,
+        )
+
+        index_info_collection = await get_index_info_collection()
         await index_info_collection.update_index_info(
             "index",
             entity_info,
@@ -165,7 +179,6 @@ async def process_document(file_path: str, filename: str):
         )
 
         logger.info("Property Graph Index created for %s", filename)
-
     except Exception as e:
         logger.exception("Error processing document: %s", filename)
     finally:
@@ -174,34 +187,46 @@ async def process_document(file_path: str, filename: str):
             logger.info("Temporary file removed: %s", file_path)
 
 
-@router.get("/documents", response_model=List[Dict[str, Any]])
+class Document(BaseModel):
+    name: str
+    uuid: str  # the uuid is used to index S3
+
+
+class DocumentList(BaseModel):
+    documents: list[Document]
+
+
+@router.get("/documents", response_model=DocumentList)
 async def list_documents(driver=Depends(get_neo4j_driver)):
     """
-    List all documents that have been uploaded and processed in Neo4j
-    Returns document information including filename and available pages
+    List all documents that have been uploaded and processed
+    Returns all documents.
     """
-    logger.info("Listing documents from Neo4j database")
+
+    # TODO: This should list the available files for a particular user.
+
+    logger.info("List documents request")
     try:
-        with driver.session(database=settings.neo4j_database) as session:
-            # Query to get unique files and their pages from the TextNode nodes
-            result = session.run(
-                """
-                MATCH (chunk:Chunk)
-                RETURN distinct chunk.file_name as file_name
-                """
-            )
+        documents_collection = await get_documents_collection()
 
-            documents = []
-            for record in result:
-                documents.append({
-                    "file_name": record["file_name"],
-                })
+        documents = await documents_collection.list_documents()
+        logger.info(
+            "Documents=%s",
+            documents
+        )
 
-            logger.info(
-                f"Found {len(documents)} documents with page information")
-            return documents
+        document_list = []
+        for document in documents:
+            document_list.append({
+                "name": document["name"],
+                "uuid": document["uuid"],
+            })
+
+        return {
+            "documents": document_list
+        }
     except Exception as e:
-        logger.exception("Error listing documents from Neo4j")
+        logger.exception("Error listing documents")
         raise HTTPException(
             status_code=500, detail=f"Error listing documents: {str(e)}"
         )
