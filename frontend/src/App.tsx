@@ -7,6 +7,7 @@ import { client } from "./api/apollo.ts";
 import { ApolloProvider } from "@apollo/client";
 import { TabProvider } from "@context/TabContext";
 import { MessageProvider } from "@context/MessageContext";
+import { FileSystemProvider } from "@context/FileSystemContext";
 
 import NavSidebar from "./components/sidebar/NavSidebar";
 import TabView from "./components/tabview/TabView";
@@ -180,30 +181,32 @@ function App() {
 
   return (
     <ApolloProvider client={client}>
-      <TabProvider>
-        <MessageProvider>
-          {/* Use h-screen but remove w-screen */}
-          <div className="flex h-screen w-screen bg-gray-100">
-            {/* Navigation Sidebar Component */}
-            <NavSidebar
-              chatHistories={chatHistories}
-              activeChatHistory={activeChatHistory}
-              onSelectChatHistory={selectChatHistory}
-              onCreateNewChat={createNewChatHistory}
-              files={files}
-              directory={directory}
-              onFileSelect={handleFileSelect}
-              onFileUpload={processFiles}
-              onFileRemove={removeFile}
-            />
+      <FileSystemProvider>
+        <TabProvider>
+          <MessageProvider>
+            {/* Use h-screen but remove w-screen */}
+            <div className="flex h-screen w-screen bg-gray-100">
+              {/* Navigation Sidebar Component */}
+              <NavSidebar
+                chatHistories={chatHistories}
+                activeChatHistory={activeChatHistory}
+                onSelectChatHistory={selectChatHistory}
+                onCreateNewChat={createNewChatHistory}
+                files={files}
+                directory={directory}
+                onFileSelect={handleFileSelect}
+                onFileUpload={processFiles}
+                onFileRemove={removeFile}
+              />
 
-            {/* TabView with Chat and File tabs - no overflow-hidden here */}
-            <div className="flex-1">
-              <TabView />
+              {/* TabView with Chat and File tabs - no overflow-hidden here */}
+              <div className="flex-1">
+                <TabView />
+              </div>
             </div>
-          </div>
-        </MessageProvider>
-      </TabProvider>
+          </MessageProvider>
+        </TabProvider>
+      </FileSystemProvider>
     </ApolloProvider>
   );
 }

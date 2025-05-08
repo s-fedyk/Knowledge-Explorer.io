@@ -5,6 +5,7 @@ import GraphView from "./GraphView";
 import TabIcon from "./TabIcon";
 import Tab from "./Tab";
 import { useTabContext } from "@context/TabContext";
+import { useFileSystemContext } from "@context/FileSystemContext";
 import { GraphViewProvider } from "@context/GraphViewContext";
 /**
  * TabView component for managing multiple tabs, including chat and file viewers
@@ -15,14 +16,13 @@ import { GraphViewProvider } from "@context/GraphViewContext";
  */
 const TabView = () => {
   const { tabs, activeTabId } = useTabContext();
-
-  console.log("tabs are", tabs);
+  const { file } = useFileSystemContext();
 
   // Render tab content based on type
   const renderTabContent = (tab) => {
     switch (tab.type) {
       case "file":
-        return <FileView file={tab} />;
+        return <FileView file={file} />;
       case "graph":
         return (
           <GraphViewProvider>

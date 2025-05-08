@@ -26,7 +26,7 @@ export const useFileSystemContext = () => {
  * @param {string|null} props.initialActiveFile - Initial active file
  */
 export const FileSystemProvider = ({ children, initialActiveFile = null }) => {
-  const [activeFile, setActiveFile] = useState(initialActiveFile);
+  const [file, setActiveFile] = useState(initialActiveFile);
   const [currentPath, setCurrentPath] = useState("/");
   const [navigationHistory, setNavigationHistory] = useState(["/"]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -48,25 +48,10 @@ export const FileSystemProvider = ({ children, initialActiveFile = null }) => {
 
   // Handle file selection
   const handleFileSelect = (file) => {
-    console.log(file, "was selected");
+    console.log("selecting", file);
     setActiveFile(file);
   };
 
-  // Handle file upload
-  const handleFileUpload = (files, targetPath = currentPath) => {
-    if (files && files.length > 0) {
-      // Implementation depends on your file upload logic
-      // This is a placeholder that would update the directory state
-      const newDirectory = { ...directory };
-
-      // Process uploaded files and update directory
-      // ... file processing logic here
-
-      setDirectory(newDirectory);
-    }
-  };
-
-  // Handle file removal
   const handleFileRemove = (filePath) => {
     // Implementation depends on your file removal logic
     const newDirectory = { ...directory };
@@ -77,7 +62,7 @@ export const FileSystemProvider = ({ children, initialActiveFile = null }) => {
     setDirectory(newDirectory);
 
     // If the removed file was active, clear active file
-    if (activeFile === filePath) {
+    if (file === filePath) {
       setActiveFile(null);
     }
   };
@@ -114,14 +99,13 @@ export const FileSystemProvider = ({ children, initialActiveFile = null }) => {
 
   const value = {
     directory,
-    activeFile,
+    file,
     currentPath,
     navigationHistory,
     historyIndex,
     canGoBack: historyIndex > 0,
     canGoForward: historyIndex < navigationHistory.length - 1,
     handleFileSelect,
-    handleFileUpload,
     handleFileRemove,
     navigateToFolder,
     navigateBack,

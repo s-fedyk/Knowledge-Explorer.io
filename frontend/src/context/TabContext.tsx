@@ -21,7 +21,7 @@ export const useTabContext = () => {
  * @param {Object} props - Component props
  * @param {React.ReactNode} props.children - Child components
  */
-export const TabProvider = ({ children }) => {
+export const TabProvider = ({ children, file }) => {
   const [activeTabId, setActiveTabId] = useState(1);
   const [tabs, setTabs] = useState([
     { id: 1, name: "Chat", type: "chat" },
@@ -29,8 +29,7 @@ export const TabProvider = ({ children }) => {
       id: 2,
       name: "File",
       type: "file",
-      path: "http://localhost:8100//criticaldialoguesample.docx",
-      fileType: "docx",
+      file: file,
     },
   ]);
 

@@ -15,27 +15,20 @@ import { ChatHistoryProvider } from "@context/ChatHistoryContext";
 function NavSidebar({
   initialChatHistories = [],
   initialActiveChatHistory = null,
-  initialDirectory = {},
-  initialActiveFile = null,
 }) {
   return (
     <ChatHistoryProvider
       initialChatHistories={initialChatHistories}
       initialActiveChatHistory={initialActiveChatHistory}
     >
-      <FileSystemProvider
-        initialDirectory={initialDirectory}
-        initialActiveFile={initialActiveFile}
-      >
-        <div className="w-64 h-full bg-white shadow-md flex flex-col border-r border-gray-400">
-          <div className="basis-2/5 overflow-y-auto border-gray-400">
-            <ChatHistorySelector />
-          </div>
-          <div className="basis-3/5">
-            <FileSystem />
-          </div>
+      <div className="w-64 h-full bg-white shadow-md flex flex-col border-r border-gray-400">
+        <div className="basis-2/5 overflow-y-auto border-gray-400">
+          <ChatHistorySelector />
         </div>
-      </FileSystemProvider>
+        <div className="basis-3/5">
+          <FileSystem />
+        </div>
+      </div>
     </ChatHistoryProvider>
   );
 }

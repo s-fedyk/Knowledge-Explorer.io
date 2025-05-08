@@ -10,11 +10,12 @@ const FileView = ({ file }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  return (
+  console.log("file", file);
+
+  return file ? (
     <div className="text-black bg-gray-100">
       <FileViewer
         key={file.id}
-        fileType={file.fileType}
         filePath={file.path}
         onLoad={() => setLoading(false)}
         onError={(e) => {
@@ -24,6 +25,8 @@ const FileView = ({ file }) => {
         }}
       />
     </div>
+  ) : (
+    <p>abc</p>
   );
 };
 

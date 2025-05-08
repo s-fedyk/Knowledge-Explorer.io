@@ -1,5 +1,6 @@
 import boto3
 import os
+import io
 from pathlib import Path
 from app.config import settings
 from botocore.exceptions import ClientError, NoCredentialsError
@@ -78,29 +79,31 @@ class S3Client:
             self.logger.error(f"Error uploading file {file_path} to S3: {e}")
             return False
 
-    def download_pdf(self, object_name, file_path=None):
+    def download(self, object_name):
         """
-        Download a PDF file from the S3 bucket
-
-        :param object_name: S3 object name to download
-        :param file_path: Local path where the file should be saved. If not specified, 
-                          it will be saved with the same name in the current directory
-        :return: True if file was downloaded, False otherwise
+        Download a file from the S3 bucket and return its content
+        :param object_name: S3 object name (UUID) to download
+        :return: BytesIO object containing the file content, or None if an error occurred
         """
-        # If file_path not specified, use object_name as the local file name
-        if file_path is None:
-            file_path = object_name
-
         try:
-            self.s3_client.download_file(
-                self.bucket_name, object_name, file_path)
+            # Create a BytesIO object to store the file content
+            file_content = io.BytesIO()
+
+            # Download the file directly into the BytesIO object
+            self.s3_client.download_fileobj(
+                self.bucket_name, object_name, file_content)
+
+            # Reset the file pointer to the beginning of the file
+            file_content.seek(0)
+
             self.logger.info(
-                f"Successfully downloaded {self.bucket_name}/{object_name} to {file_path}")
-            return True
+                f"Successfully downloaded {self.bucket_name}/{object_name}")
+
+            return file_content
         except ClientError as e:
             self.logger.error(
                 f"Error downloading file {object_name} from S3: {e}")
-            return False
+            return None
 
     def list_pdfs(self, prefix=''):
         """

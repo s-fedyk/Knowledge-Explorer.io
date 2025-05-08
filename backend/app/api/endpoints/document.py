@@ -15,6 +15,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.indices.property_graph import PropertyGraphIndex
 from llama_index.core import StorageContext
 from llama_index.readers.file import PDFReader
+from starlette.responses import StreamingResponse
 from app.client.s3_client import get_s3_client
 from app.dependencies import get_vector_store, get_neo4j_driver, get_graph_store
 from app.logger import logger
@@ -125,6 +126,7 @@ async def process_document(file_path: Path, filename: str):
         # we use a uuid to identify the file, so there
         # are no collisions in storage.
         doc_uuid = file_path.stem
+        extension = file_path.suffix
 
         loader = PDFReader()
         documents = loader.load_data(file=file_path)
@@ -181,7 +183,8 @@ async def process_document(file_path: Path, filename: str):
         await documents_collection.create_document(
             doc_uuid=doc_uuid,
             name=filename,
-            mimetype=mimetype
+            extension=extension,
+            mimetype=mimetype,
         )
 
         index_info_collection = await get_index_info_collection()
@@ -243,6 +246,56 @@ async def list_documents(driver=Depends(get_neo4j_driver)):
         logger.exception("Error listing documents")
         raise HTTPException(
             status_code=500, detail=f"Error listing documents: {str(e)}"
+        )
+
+
+@router.get("/document/{uuid}")
+async def download_document(uuid: str):
+    """
+    Download a specific document by UUID
+    """
+    logger.info(f"Download document request for UUID: {uuid}")
+    try:
+        # Verify the document exists in the database
+        documents_collection = await get_documents_collection()
+        document = await documents_collection.get_document(uuid)
+
+        logger.info("Document metadata = {$s}", document)
+
+        if not document:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found"
+            )
+
+        # Get the file from S3
+        s3_client = get_s3_client()
+
+        extension: str = document["extension"]
+        object_name: str = f"{uuid}{extension}"
+
+        file_content = s3_client.download(object_name)
+
+        if not file_content:
+            raise HTTPException(
+                status_code=404,
+                detail="File not found in storage"
+            )
+
+        # Create a streaming response with the correct content type
+        return StreamingResponse(
+            file_content,
+            media_type=document[
+                "mimetype"
+            ],
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{document['name']}\""
+            }
+        )
+    except Exception as e:
+        logger.exception(f"Error downloading document: {uuid}")
+        raise HTTPException(
+            status_code=500, detail=f"Error downloading document: {str(e)}"
         )
 
 

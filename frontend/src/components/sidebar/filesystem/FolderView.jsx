@@ -9,16 +9,7 @@ import FolderItem from "./items/FolderItem";
  * FolderView component to display the contents of the current folder
  */
 function FolderView() {
-  const {
-    currentPath,
-    directory,
-    activeFile,
-    handleFileSelect,
-    handleFileRemove,
-    navigateToFolder,
-  } = useFileSystemContext();
-
-  console.log("directory is:", directory);
+  const { currentPath, directory, navigateToFolder } = useFileSystemContext();
 
   return (
     <div className="h-full overflow-y-auto">
@@ -26,13 +17,13 @@ function FolderView() {
         {directory.map((item) =>
           item.mimetype === "folder" ? (
             <FolderItem
-              key={item.name}
+              key={item.uuid}
               folder={item}
               currentPath={currentPath}
               navigateToFolder={navigateToFolder}
             />
           ) : (
-            <FileItem file={item} />
+            <FileItem key={item.uuid} file={item} />
           ),
         )}
       </ul>

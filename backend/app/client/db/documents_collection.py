@@ -22,12 +22,19 @@ class DocumentsCollection(MongoDBBase):
         await self.collection.create_index("name")
 
     @log_db_operation
-    async def create_document(self, doc_uuid: str, name: str, mimetype: str) -> Dict[str, Any]:
+    async def create_document(self,
+                              doc_uuid: str,
+                              name: str,
+                              extension: str,
+                              mimetype: str
+                              ) -> Dict[str, Any]:
         """Create a new document record pointing to S3"""
+
         now = datetime.utcnow()
         document_data = {
             "uuid": doc_uuid,
             "name": name,
+            "extension": extension,
             "mimetype": mimetype,
             "created_at": now,
             "updated_at": now
