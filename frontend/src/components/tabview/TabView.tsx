@@ -3,6 +3,7 @@ import ChatWindow from "./ChatWindow";
 import FileView from "./FileView";
 import GraphView from "./GraphView";
 import TabIcon from "./TabIcon";
+import Tab from "./Tab";
 import { useTabContext } from "@context/TabContext";
 import { GraphViewProvider } from "@context/GraphViewContext";
 /**
@@ -13,7 +14,10 @@ import { GraphViewProvider } from "@context/GraphViewContext";
  * @param {Function} props.onFileSelect - Function to call when a file is selected
  */
 const TabView = () => {
-  const { tabs, activeTabId, handleTabClick, getTabIcon } = useTabContext();
+  const { tabs, activeTabId } = useTabContext();
+
+  console.log("tabs are", tabs);
+
   // Render tab content based on type
   const renderTabContent = (tab) => {
     switch (tab.type) {
@@ -34,19 +38,7 @@ const TabView = () => {
       {/* Tabs navigation */}
       <div className="flex flex-none bg-white border-b border-gray-200 overflow-x-auto text-lg">
         {tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={`px-6 py-4 flex items-center cursor-pointer border-r border-gray-200 ${
-              activeTabId === tab.id
-                ? "bg-gray-100 text-gray-400"
-                : "hover:bg-gray-50 text-gray-400"
-            }`}
-            onClick={() => handleTabClick(tab.id)}
-          >
-            <TabIcon type={tab.type} active={activeTabId == tab.id} />
-            <span className="pl-2 truncate border:none">{tab.name}</span>
-            {/* Only show close button if not the chat tab */}
-          </div>
+          <Tab tab={tab} />
         ))}
       </div>
       {/* Tab content area - changed from flex-grow to flex-1 and overflow-auto */}

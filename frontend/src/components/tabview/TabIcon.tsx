@@ -26,6 +26,8 @@ function TabIcon({ type, active }) {
 
   // Get the accent color
   const accentColor = getAccentColor();
+  const iconClasses = `w-5 h-5 transition-all duration-50 ${active ? `${accentColor} filter drop-shadow-sm` : "text-gray-400"}`;
+  const strokeWidth = active ? 2.5 : 2;
 
   return (
     <div
@@ -36,10 +38,7 @@ function TabIcon({ type, active }) {
     >
       {type === "chat" && (
         <svg
-          className={`
-            w-5 h-5 transition-all duration-50
-            ${active ? `${accentColor} filter drop-shadow-sm` : "text-gray-400"}
-          `}
+          className={iconClasses}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -56,10 +55,7 @@ function TabIcon({ type, active }) {
 
       {type === "file" && (
         <svg
-          className={`
-            w-5 h-5 transition-all duration-50
-            ${active ? `${accentColor} filter drop-shadow-sm` : "text-gray-400"}
-          `}
+          className={iconClasses}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -76,21 +72,23 @@ function TabIcon({ type, active }) {
 
       {type === "graph" && (
         <svg
-          className={`
-            w-5 h-5 transition-all duration-50
-            ${active ? `${accentColor} filter drop-shadow-sm` : "text-gray-400"}
-          `}
+          className={iconClasses}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={active ? 2.5 : 2}
-            d="M17 15l2-2m0 0l-2-2m2 2H9m11 4l-4 4m0 0l-4-4m4 4V3"
-          />
+          {/* Custom knowledge graph icon - nodes and connections */}
+          <circle cx="5" cy="5" r="2" strokeWidth={strokeWidth} />
+          <circle cx="19" cy="5" r="2" strokeWidth={strokeWidth} />
+          <circle cx="5" cy="19" r="2" strokeWidth={strokeWidth} />
+          <circle cx="19" cy="19" r="2" strokeWidth={strokeWidth} />
+          <circle cx="12" cy="12" r="2" strokeWidth={strokeWidth} />
+
+          <line x1="5" y1="5" x2="12" y2="12" strokeWidth={strokeWidth} />
+          <line x1="19" y1="5" x2="12" y2="12" strokeWidth={strokeWidth} />
+          <line x1="5" y1="19" x2="12" y2="12" strokeWidth={strokeWidth} />
+          <line x1="19" y1="19" x2="12" y2="12" strokeWidth={strokeWidth} />
         </svg>
       )}
     </div>
