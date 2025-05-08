@@ -5,13 +5,14 @@ import uuid
 import asyncio
 from pydantic import BaseModel
 from llama_index.core import VectorStoreIndex, StorageContext
+from app.client.db import index_infos_collection, queries_collection
 from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
 from llama_index.core.indices.property_graph import PropertyGraphIndex
 from llama_index.core import StorageContext
 from app.dependencies import get_rag_engine, get_vector_store, get_graph_store
 from app.logger import logger
 
-from app.client.mongoClient import mongoClient
+from app.client.mongo_client import get_index_info_collection, get_queries_collection
 
 active_queries = {}
 query_sources = {}
@@ -37,7 +38,8 @@ async def get_query_sources(query_id: str):
     """
     logger.info(f"Retrieving sources for query: {query_id}")
 
-    query_data = await mongoClient.get_query(query_id)
+    queries_collection = await get_queries_collection()
+    query_data = await queries_collection.get_query(query_id)
 
     if not query_data:
         raise HTTPException(
@@ -94,7 +96,8 @@ async def create_query(request: QueryRequest):
             f"Creating query: {query_id} for input: {request.query}")
 
         # throws mongo server error on failure. Force client to retry?
-        await mongoClient.create_query(query_id, request.query)
+        queries_collection = await get_queries_collection()
+        await queries_collection.create_query(query_id, request.query)
 
         return {"query_id": query_id}
     except Exception as e:
@@ -117,7 +120,9 @@ async def stream_query_response(
     Connect to a streaming endpoint using the query ID
     """
     logger.info(f"Request to connect to stream for query: {query_id}")
-    query_data = await mongoClient.get_query(query_id)
+    queries_collection = await get_queries_collection()
+
+    query_data = await queries_collection.get_query(query_id)
     if not query_data:
         raise HTTPException(
             status_code=404,
@@ -129,7 +134,8 @@ async def stream_query_response(
     try:
         logger.info(f"Executing query {query_id}: {query}")
 
-        index_info = await mongoClient.get_index_info("index")
+        index_infos_collection = await get_index_info_collection()
+        index_info = await index_infos_collection.get_index_info("index")
 
         if index_info:
             if index_info["entity_info"]:
@@ -156,7 +162,7 @@ async def stream_query_response(
         for source in streaming_response.source_nodes:
             formatted_sources.append(source.node_id)
 
-        await mongoClient.store_query_sources(
+        await queries_collection.store_query_sources(
             query_id,
             formatted_sources,
         )

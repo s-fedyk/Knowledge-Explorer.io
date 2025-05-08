@@ -17,7 +17,7 @@ from app.dependencies import get_vector_store, get_neo4j_driver, get_graph_store
 from app.logger import logger
 from app.config import settings
 from app.rag.GraphRagExtractor import GraphRAGExtractor
-from app.client.mongoClient import mongoClient
+from app.client.mongo_client import get_documents_collection, get_index_info_collection
 
 
 router = APIRouter(tags=["document"])
@@ -152,7 +152,13 @@ async def process_document(file_path: str, filename: str):
         community_summary = index.property_graph_store.community_summary
         entity_info = index.property_graph_store.entity_info
 
-        await mongoClient.update_index_info("index", entity_info, community_summary)
+        index_info_collection = await get_index_info_collection()
+
+        await index_info_collection.update_index_info(
+            "index",
+            entity_info,
+            community_summary
+        )
 
         logger.info("Property Graph Index created for %s", filename)
 

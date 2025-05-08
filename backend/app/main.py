@@ -4,13 +4,13 @@ from app.api.endpoints import document
 from app.api.endpoints import query
 from app.api.endpoints import gql
 from contextlib import asynccontextmanager
-from app.client.mongoClient import mongoClient
+from app.client.mongo_client import get_mongo_client
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # everything before the yield executes before the app starts up.
-    await mongoClient.connect()
+    await get_mongo_client()
     yield
 
 app = FastAPI(
