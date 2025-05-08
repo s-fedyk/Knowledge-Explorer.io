@@ -42,18 +42,10 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         )
 
     def response_generator(self, query_str: str) -> Generator:
-        logger.info("Reponse generator!")
+        logger.info("Synchronous Reponse generator!")
         entities, source_nodes = self.get_entities(
             query_str,
             self.similarity_top_k
-        )
-
-        logger.info("(generator) Retrieved entities: %s", entities)
-        logger.info("(generator) Source nodes: %s", source_nodes)
-
-        logger.info(
-            "Graph store entity info: {%s}",
-            self.graph_store.entity_info
         )
 
         community_ids = self.retrieve_entity_communities(
@@ -92,7 +84,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         yield ChatResponse(message=ChatMessage(), delta="[FINALEND]")
 
     async def aresponse_generator(self, query_str: str, entities) -> AsyncGenerator:
-        logger.info("Reponse generator!")
+        logger.info("Asynchronous Reponse generator!")
         logger.info("(generator) Retrieved entities: %s", entities)
 
         logger.info(

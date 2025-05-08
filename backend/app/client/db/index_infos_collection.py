@@ -23,11 +23,12 @@ class IndexInfoCollection(MongoDBBase):
     async def get_index_info(self, index_name: str) -> Optional[Dict[str, Any]]:
         """Retrieve index info by name"""
         index_info = await self.collection.find_one({"index_name": index_name})
-        logger.info(
-            "Retrieved index_info with name=%s, contents=%s",
-            index_name,
-            index_info
-        )
+
+        if index_info and "community_info" in index_info.keys():
+            # mongo only allows string keys :(
+            index_info["community_info"] = {
+                int(k): v for k, v in index_info["community_info"].items()}
+
         return index_info
 
     @log_db_operation
@@ -36,6 +37,7 @@ class IndexInfoCollection(MongoDBBase):
         """Create or update index info with the given entity and community information"""
         now = datetime.utcnow()
 
+        # mongo rules. keys mus be strings.
         community_info_stringified = {
             str(k): v for k, v in community_info.items()
         }
@@ -59,22 +61,12 @@ class IndexInfoCollection(MongoDBBase):
             upsert=True
         )
 
-        logger.info(
-            "Upserted index_info with name=%s, was_inserted=%s",
-            index_name,
-            result.upserted_id is not None
-        )
-
         return await self.get_index_info(index_name)
 
     @log_db_operation
     async def delete_index_info(self, index_name: str) -> bool:
         """Delete an index info by name"""
         result = await self.collection.delete_one({"index_name": index_name})
-        logger.info(
-            "Deleted index_info with name=%s, deleted_count=%s",
-            index_name, result.deleted_count
-        )
         return result.deleted_count > 0
 
     @log_db_operation

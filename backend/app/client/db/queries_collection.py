@@ -22,7 +22,6 @@ class QueriesCollection(MongoDBBase):
 
     @log_db_operation
     async def create_query(self, query_id: str, query_text: str) -> Dict[str, Any]:
-        """Create a new query in MongoDB"""
         now = datetime.utcnow()
         query_data = {
             "query_id": query_id,
@@ -33,29 +32,16 @@ class QueriesCollection(MongoDBBase):
             "sources": None
         }
 
-        inserted_id = await self.collection.insert_one(query_data)
-        logger.info(
-            "create_query query_id={%s}. inserted_id={%s}. data={%s}",
-            query_id,
-            inserted_id,
-            query_data
-        )
-
+        await self.collection.insert_one(query_data)
         return query_data
 
     @log_db_operation
     async def update_query(self, query_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Update an existing query"""
         update_data["updated_at"] = datetime.utcnow()
 
         result = await self.collection.update_one(
             {"query_id": query_id},
             {"$set": update_data}
-        )
-
-        logger.info(
-            "update_query query_id={%s}.",
-            query_id,
         )
         if result.matched_count:
             return await self.get_query(query_id)
@@ -66,10 +52,6 @@ class QueriesCollection(MongoDBBase):
         """Retrieve a query by ID"""
         query = await self.collection.find_one({"query_id": query_id})
 
-        logger.info(
-            "get_query query_id={%s}.",
-            query_id,
-        )
         return query
 
     @log_db_operation
@@ -81,11 +63,6 @@ class QueriesCollection(MongoDBBase):
     @log_db_operation
     async def store_query_sources(self, query_id: str, sources: List[str]) -> bool:
         """Store the sources for a query"""
-        logger.info(
-            "store_query_sources begin, query_id= %s",
-            query_id
-        )
-
         now = datetime.utcnow()
         sources_data = {
             "query_id": query_id,
@@ -100,11 +77,6 @@ class QueriesCollection(MongoDBBase):
             {"query_id": query_id},
             {"$set": sources_data},
             upsert=True
-        )
-
-        logger.info(
-            "store_query_sources query_id={%s}.",
-            query_id,
         )
 
         return result.modified_count > 0 or result.upserted_id is not None
