@@ -36,7 +36,7 @@ const TabView = () => {
   return (
     <div className="h-full w-full flex flex-col bg-gray-200 overflow-hidden">
       {/* Tabs navigation */}
-      <div className="flex flex-none bg-white border-b border-gray-200 overflow-x-auto text-lg">
+      <div className="flex flex-none bg-white border-b border-gray-400 overflow-x-auto text-lg">
         {tabs.map((tab) => (
           <Tab tab={tab} />
         ))}

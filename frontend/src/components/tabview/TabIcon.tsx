@@ -18,7 +18,7 @@ function TabIcon({ type, active }) {
       case "file":
         return "text-red-500";
       case "graph":
-        return "text-purple-500";
+        return "text-green-600";
       default:
         return "text-gray-500";
     }
@@ -47,7 +47,7 @@ function TabIcon({ type, active }) {
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth={active ? 2.5 : 2}
+            strokeWidth={strokeWidth}
             d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
           />
         </svg>
@@ -64,7 +64,7 @@ function TabIcon({ type, active }) {
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth={active ? 2.5 : 2}
+            strokeWidth={strokeWidth}
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           />
         </svg>
@@ -75,20 +75,20 @@ function TabIcon({ type, active }) {
           className={iconClasses}
           fill="none"
           stroke="currentColor"
+          strokeWidth={strokeWidth}
           viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Custom knowledge graph icon - nodes and connections */}
-          <circle cx="5" cy="5" r="2" strokeWidth={strokeWidth} />
-          <circle cx="19" cy="5" r="2" strokeWidth={strokeWidth} />
-          <circle cx="5" cy="19" r="2" strokeWidth={strokeWidth} />
-          <circle cx="19" cy="19" r="2" strokeWidth={strokeWidth} />
-          <circle cx="12" cy="12" r="2" strokeWidth={strokeWidth} />
+          {/* Option 4: Hierarchical tree */}
+          <circle cx="12" cy="4" r="2" strokeWidth="2" />
+          <circle cx="6" cy="12" r="2" strokeWidth="2" />
+          <circle cx="18" cy="12" r="2" strokeWidth="2" />
+          <circle cx="6" cy="20" r="2" strokeWidth="2" />
+          <circle cx="18" cy="20" r="2" strokeWidth="2" />
 
-          <line x1="5" y1="5" x2="12" y2="12" strokeWidth={strokeWidth} />
-          <line x1="19" y1="5" x2="12" y2="12" strokeWidth={strokeWidth} />
-          <line x1="5" y1="19" x2="12" y2="12" strokeWidth={strokeWidth} />
-          <line x1="19" y1="19" x2="12" y2="12" strokeWidth={strokeWidth} />
+          <line x1="12" y1="6" x2="6" y2="10" strokeWidth="2" />
+          <line x1="12" y1="6" x2="18" y2="10" strokeWidth="2" />
+          <line x1="6" y1="14" x2="6" y2="18" strokeWidth="2" />
+          <line x1="18" y1="14" x2="18" y2="18" strokeWidth="2" />
         </svg>
       )}
     </div>

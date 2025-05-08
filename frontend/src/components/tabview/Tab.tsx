@@ -4,6 +4,8 @@ import TabIcon from "./TabIcon";
 function Tab({ tab }) {
   const { activeTabId, handleTabClick } = useTabContext();
   console.log("TAB CONTENT", tab);
+  const active = activeTabId == tab.id;
+  const textColor = active ? "text-black" : "text-gray-400";
 
   return (
     <div
@@ -15,8 +17,10 @@ function Tab({ tab }) {
       }`}
       onClick={() => handleTabClick(tab.id)}
     >
-      <TabIcon type={tab.type} active={activeTabId == tab.id} />
-      <span className="pl-2 truncate border:none">{tab.name}</span>
+      <TabIcon type={tab.type} active={active} />
+      <span className={`pl-2 truncate border:none ${textColor}`}>
+        {tab.name}
+      </span>
       {/* Only show close button if not the chat tab */}
     </div>
   );

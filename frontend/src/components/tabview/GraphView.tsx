@@ -12,7 +12,7 @@ const NodeSidebar = ({ node, onClose, isExiting }) => {
 
   return (
     <div
-      className={`h-full w-64 border-l node-sidebar overflow-y-auto border-gray-200 ${isExiting ? "animate-slide-out" : "animate-slide-in"}`}
+      className={`h-full w-64 border-l node-sidebar overflow-y-auto border-gray-400 ${isExiting ? "animate-slide-out" : "animate-slide-in"}`}
     >
       <div className="flex justify-between items-center mb-4">
         <button onClick={onClose} className="text-gray-500 hover:text-gray-400">
