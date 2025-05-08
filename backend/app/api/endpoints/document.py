@@ -1,6 +1,8 @@
+import mimetypes
 import os
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
+from mimetypes import MimeTypes
 import re
 import uuid
 from pydantic import BaseModel
@@ -49,6 +51,10 @@ async def upload_document(
 
         file_path = os.path.join(settings.data_path, storage_filename)
 
+        mimetype, _ = mimetypes.guess_type(file_path)
+        if not mimetype:
+            raise Exception("Unknown file type")
+
         logger.debug("Saving uploaded file to %s", file_path)
         with open(file_path, "wb") as f:
             content = await file.read()
@@ -61,8 +67,10 @@ async def upload_document(
             file.filename
         )
 
-        logger.info("Background task added for processing %s",
-                    storage_filename)
+        logger.info(
+            "Background task added for processing %s",
+            storage_filename
+        )
 
         return {
             "filename": storage_filename,
@@ -165,10 +173,15 @@ async def process_document(file_path: Path, filename: str):
         s3_client = get_s3_client()
         s3_client.upload_file(file_path)
 
+        mimetype, _ = mimetypes.guess_type(file_path)
+        if not mimetype:
+            raise Exception("Unknown file type")
+
         documents_collection = await get_documents_collection()
         await documents_collection.create_document(
             doc_uuid=doc_uuid,
             name=filename,
+            mimetype=mimetype
         )
 
         index_info_collection = await get_index_info_collection()
@@ -190,6 +203,7 @@ async def process_document(file_path: Path, filename: str):
 class Document(BaseModel):
     name: str
     uuid: str  # the uuid is used to index S3
+    mimetype: str
 
 
 class DocumentList(BaseModel):
@@ -204,7 +218,6 @@ async def list_documents(driver=Depends(get_neo4j_driver)):
     """
 
     # TODO: This should list the available files for a particular user.
-
     logger.info("List documents request")
     try:
         documents_collection = await get_documents_collection()
@@ -220,6 +233,7 @@ async def list_documents(driver=Depends(get_neo4j_driver)):
             document_list.append({
                 "name": document["name"],
                 "uuid": document["uuid"],
+                "mimetype": document["mimetype"],
             })
 
         return {
