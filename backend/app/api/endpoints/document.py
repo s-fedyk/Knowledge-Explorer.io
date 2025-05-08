@@ -13,11 +13,12 @@ from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.indices.property_graph import PropertyGraphIndex
 from llama_index.core import StorageContext
 from llama_index.readers.file import PDFReader
+from app.client.s3_client import get_s3_client
 from app.dependencies import get_vector_store, get_neo4j_driver, get_graph_store
 from app.logger import logger
 from app.config import settings
 from app.rag.GraphRagExtractor import GraphRAGExtractor
-from app.client.mongo_client import get_documents_collection, get_index_info_collection
+from app.client.mongo_client import get_index_info_collection
 
 
 router = APIRouter(tags=["document"])
@@ -112,6 +113,9 @@ async def process_document(file_path: str, filename: str):
     try:
         loader = PDFReader()
         documents = loader.load_data(file=Path(file_path))
+
+        s3_client = get_s3_client()
+        s3_client.upload_pdf(file_path)
 
         splitter = SentenceSplitter(
             chunk_size=1024,

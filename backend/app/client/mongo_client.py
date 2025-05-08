@@ -42,14 +42,14 @@ class MongoDBClient(MongoDBBase):
 
 
 # Create a singleton instance
-mongoClient = MongoDBClient()
+mongo_client = MongoDBClient()
 
 
 async def get_mongo_client() -> MongoDBClient:
     """Dependency to get the MongoDB client"""
-    if not mongoClient.is_connected:
-        await mongoClient.connect()
-    return mongoClient
+    if not mongo_client.is_connected:
+        await mongo_client.connect()
+    return mongo_client
 
 
 async def get_queries_collection():

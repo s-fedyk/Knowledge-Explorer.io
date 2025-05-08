@@ -38,5 +38,10 @@ class Settings(BaseSettings):
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1024"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "20"))
 
+    doc_bucket: str = os.getenv("S3_DOC_BUCKET", "")
+    aws_access_key_id: str = os.getenv("AWS_ACCESS_KEY_ID", "")
+    aws_secret_access_key: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    aws_region: str = os.getenv("AWS_REGION", "us-east-2")
+
 
 settings = Settings()

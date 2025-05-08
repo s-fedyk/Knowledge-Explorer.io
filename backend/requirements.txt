@@ -27,3 +27,4 @@ nest_asyncio
 pymongo
 dnspython
 motor
+boto3
