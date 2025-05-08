@@ -15,15 +15,8 @@ function ChatHistorySelector() {
   return (
     <div className="flex flex-col h-full">
       {/* Header stays fixed */}
-      <div className="flex justify-between items-center p-2 border-b border-gray-400">
-        <h2 className="text-black text-lg font-bold">Chats</h2>
-        <button
-          onClick={handleCreateNewChat}
-          className="bg-blue-500 text-white p-1 rounded-full hover:bg-blue-600 w-6 h-6 flex items-center justify-center"
-          aria-label="Create new chat"
-        >
-          +
-        </button>
+      <div className="flex justify-center items-center p-2 border-b border-gray-200">
+        <h2 className="text-gray-400 text-lg font-bold">Knowledge Explorer</h2>
       </div>
       <div className="flex-1 overflow-y-auto">
         <ul className="">
@@ -41,7 +34,7 @@ function ChatHistorySelector() {
             </li>
           ))}
           {chatHistories.length === 0 && (
-            <li className="text-black text-center italic p-2">
+            <li className="text-gray-400 text-center italic p-2">
               No chat histories available
             </li>
           )}

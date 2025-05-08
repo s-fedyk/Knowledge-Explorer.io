@@ -120,9 +120,6 @@ const ChatWindow = () => {
     useMessageContext();
   const messagesEndRef = useRef(null);
 
-  // Scroll to bottom of chat whenever messages change
-  useEffect(() => {}, [messages]);
-
   const handleSend = () => {
     if (inputValue.trim() === "") return;
     // Call the context's handleSendMessage handler
@@ -202,7 +199,7 @@ const ChatWindow = () => {
         )}
       </div>
       {/* Input area - flex-none instead of fixed positioning */}
-      <div className="flex-none bg-gray-100 border-t border-gray-200 p-4">
+      <div className="flex-none bg-white border-t border-gray-200 p-4">
         <div className="flex w-full">
           <input
             type="text"

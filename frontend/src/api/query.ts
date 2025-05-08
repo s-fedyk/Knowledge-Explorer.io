@@ -53,9 +53,9 @@ export class APIClient {
       }
 
       const data = await response.json();
-      const sessionId = data.session_id;
+      const queryId = data.query_id;
 
-      if (!sessionId) {
+      if (!queryId) {
         throw this.createApiError(
           {
             error: "invalid_response",
@@ -66,7 +66,7 @@ export class APIClient {
       }
 
       // Step 2: Connect to the stream endpoint with the session ID
-      const streamUrl = `${API_ENDPOINTS.STREAM}/${sessionId}`;
+      const streamUrl = `${API_ENDPOINTS.STREAM}/${queryId}`;
       const eventSource = new EventSource(streamUrl, {
         withCredentials: false,
       });
@@ -78,8 +78,8 @@ export class APIClient {
           eventSource.close();
           // Clean up the session
 
-          if (onComplete) onComplete(sessionId);
-          this.deleteSession(sessionId).catch(console.error);
+          if (onComplete) onComplete(queryId);
+          this.deleteSession(queryId).catch(console.error);
           return;
         }
 
@@ -89,7 +89,7 @@ export class APIClient {
       eventSource.onerror = (error) => {
         eventSource.close();
 
-        this.deleteSession(sessionId).catch(console.error);
+        this.deleteSession(queryId).catch(console.error);
         if (onError) {
           onError(
             this.createApiError(
@@ -105,7 +105,7 @@ export class APIClient {
 
       return () => {
         eventSource.close();
-        this.deleteSession(sessionId).catch(console.error);
+        this.deleteSession(queryId).catch(console.error);
       };
     } catch (error) {
       if (onError) {
@@ -124,9 +124,9 @@ export class APIClient {
     }
   }
 
-  public async getSources(sessionId: string): Promise<SourcesResponse> {
+  public async getSources(queryId: string): Promise<SourcesResponse> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.SOURCES}/${sessionId}`, {
+      const response = await fetch(`${API_ENDPOINTS.SOURCES}/${queryId}`, {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -155,11 +155,11 @@ export class APIClient {
 
   /**
    * Deletes a session
-   * @param sessionId The session ID to delete
+   * @param queryId The session ID to delete
    */
-  private async deleteSession(sessionId: string): Promise<void> {
+  private async deleteSession(queryId: string): Promise<void> {
     try {
-      await fetch(`${API_ENDPOINTS.SESSION}/${sessionId}`, {
+      await fetch(`${API_ENDPOINTS.SESSION}/${queryId}`, {
         method: "DELETE",
       });
     } catch (error) {
@@ -169,14 +169,14 @@ export class APIClient {
 
   /**
    * Gets the status of a session
-   * @param sessionId The session ID to check
+   * @param queryId The session ID to check
    * @returns The session status
    */
   public async getSessionStatus(
-    sessionId: string,
+    queryId: string,
   ): Promise<{ status: string; session_id: string }> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.SESSION}/${sessionId}`, {
+      const response = await fetch(`${API_ENDPOINTS.SESSION}/${queryId}`, {
         method: "GET",
       });
 
