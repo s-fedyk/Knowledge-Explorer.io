@@ -1,5 +1,16 @@
 import { gql } from "@apollo/client";
 
+// Add these to your types file
+export interface Document {
+  uuid: string;
+  name: string;
+  mimetype: string;
+}
+
+export interface ListDocumentsParams {
+  user_id?: string;
+}
+
 export interface QueryRequest {
   query: string;
   similarity_top_k?: number;

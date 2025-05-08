@@ -21,9 +21,54 @@ export const API_ENDPOINTS = {
   GRAPH: `${API_BASE_URL}/api/${API_VERSION}/graph`,
   SESSION: `${API_BASE_URL}/api/${API_VERSION}/session`,
   SOURCES: `${API_BASE_URL}/api/${API_VERSION}/sources`,
+  DOCUMENTS: `${API_BASE_URL}/api/${API_VERSION}/documents`,
 };
 
 export class APIClient {
+  /**
+   * Retrieves a list of documents, optionally filtered by user_id
+   * @param params Optional parameters including user_id
+   * @returns Promise with the documents response
+   */
+  public async listDocuments(
+    params?: ListDocumentsParams,
+  ): Promise<Document[]> {
+    try {
+      // Construct URL with query parameters if provided
+      let url = API_ENDPOINTS.DOCUMENTS;
+      if (params?.user_id) {
+        url += `?user_id=${encodeURIComponent(params.user_id)}`;
+      }
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw this.createApiError(errorData, response.status);
+      }
+
+      const resp = (await response.json()) as DocumentsResponse;
+
+      return resp.documents
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      throw this.createApiError(
+        {
+          error: "network_error",
+          message: `Failed to retrieve documents: ${(error as Error).message}`,
+        },
+        500,
+      );
+    }
+  }
+
   /**
    * Query the RAG system with a natural language question and stream the response
    * using the post-then-get pattern.

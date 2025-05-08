@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { Client } from "@api/query.ts";
 
 // Create context
 const FileSystemContext = createContext();
@@ -24,19 +25,30 @@ export const useFileSystemContext = () => {
  * @param {Object} props.initialDirectory - Initial directory structure
  * @param {string|null} props.initialActiveFile - Initial active file
  */
-export const FileSystemProvider = ({
-  children,
-  initialDirectory = {},
-  initialActiveFile = null,
-}) => {
-  const [directory, setDirectory] = useState(initialDirectory);
+export const FileSystemProvider = ({ children, initialActiveFile = null }) => {
   const [activeFile, setActiveFile] = useState(initialActiveFile);
   const [currentPath, setCurrentPath] = useState("/");
   const [navigationHistory, setNavigationHistory] = useState(["/"]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [directory, setDirectory] = useState([]);
+
+  // Fetch documents on initial render
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const documents = await Client.listDocuments();
+        setDirectory(documents);
+      } catch (err) {
+        console.error("Error fetching documents:", err);
+      }
+    };
+
+    fetchDocuments();
+  }, []);
 
   // Handle file selection
   const handleFileSelect = (file) => {
+    console.log(file, "was selected");
     setActiveFile(file);
   };
 
