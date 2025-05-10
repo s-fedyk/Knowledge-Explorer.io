@@ -4,6 +4,8 @@ import io
 from pathlib import Path
 from app.config import settings
 from botocore.exceptions import ClientError, NoCredentialsError
+from app.utils.logging_decorator import log_db_operation
+from typing import List
 import logging
 
 
@@ -52,6 +54,28 @@ class S3Client:
             self.logger.error(f"Unexpected error during initialization: {e}")
             raise ConnectionError(
                 f"Unexpected error during initialization: {str(e)}")
+
+    def upload_files_to_directory(self, file_paths: List[Path], directory_name: str):
+        """
+        Upload multiple files to a specified directory in S3
+
+        Args:
+            file_paths: List of file paths to upload
+            directory_name: Name of the directory in S3
+        """
+        # Ensure directory name ends with a trailing slash if not empty
+        if directory_name and not directory_name.endswith('/'):
+            directory_name = f"{directory_name}/"
+
+        for file_path in file_paths:
+            # Create object name with directory prefix
+            object_name = f"{directory_name}{file_path.name}"
+            # Use existing upload_file method
+            success = self.upload_file(file_path, object_name)
+            # If upload failed, raise an exception
+            if not success:
+                raise Exception(
+                    f"Failed to upload {file_path} to {object_name}")
 
     def upload_file(self, file_path: Path, object_name=None):
         """
@@ -152,7 +176,7 @@ class S3Client:
                 f"Error deleting file {object_name} from S3: {e}")
             return False
 
-    def get_presigned_url(self, object_name, expiration=3600):
+    def get_presigned_url(self, object_name: str, expiration=3600):
         """
         Generate a presigned URL for downloading a PDF file
 

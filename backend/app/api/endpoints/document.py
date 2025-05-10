@@ -1,13 +1,13 @@
 import mimetypes
 import os
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
-from mimetypes import MimeTypes
 import re
 import uuid
+import json
+import shutil
+from typing import List, Dict, Any
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from pathlib import Path
-import json
 from fastapi.concurrency import run_in_threadpool
 from llama_index.core import StorageContext
 from llama_index.core import Settings
@@ -21,6 +21,7 @@ from app.dependencies import get_vector_store, get_neo4j_driver, get_graph_store
 from app.logger import logger
 from app.config import settings
 from app.rag.GraphRagExtractor import GraphRAGExtractor
+from app.utils.page_splitter import split_pdf_into_pages
 from app.client.mongo_client import get_documents_collection, get_index_info_collection
 
 
@@ -122,9 +123,13 @@ def parse_fn(response_str: str) -> Any:
 async def process_document(file_path: Path, filename: str):
     """Background task to process uploaded documents"""
     logger.info("Starting document processing: %s", filename)
+    temp_dir = None
     try:
         # we use a uuid to identify the file, so there
         # are no collisions in storage.
+        pages, temp_dir = await split_pdf_into_pages(file_path)
+        logger.info(f"Split into pages: {pages}")
+
         doc_uuid = file_path.stem
         extension = os.path.splitext(filename)[1][1:]
 
@@ -173,7 +178,7 @@ async def process_document(file_path: Path, filename: str):
         # index is built by this point, we can upload the document
         # to retrieve
         s3_client = get_s3_client()
-        s3_client.upload_file(file_path)
+        s3_client.upload_files_to_directory(pages, doc_uuid)
 
         mimetype, _ = mimetypes.guess_type(file_path)
         if not mimetype:
@@ -181,12 +186,12 @@ async def process_document(file_path: Path, filename: str):
 
         documents_collection = await get_documents_collection()
 
-        logger.info("Extension is %s", extension)
         await documents_collection.create_document(
             doc_uuid=doc_uuid,
             name=filename,
             extension=extension,
             mimetype=mimetype,
+            pages=len(pages)
         )
 
         index_info_collection = await get_index_info_collection()
@@ -200,6 +205,9 @@ async def process_document(file_path: Path, filename: str):
     except Exception as e:
         logger.exception("Error processing document: %s", filename)
     finally:
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+            logger.info("Temporary directory removed: %s", temp_dir)
         if os.path.exists(file_path):
             os.remove(file_path)
             logger.info("Temporary file removed: %s", file_path)
@@ -209,7 +217,7 @@ class Document(BaseModel):
     name: str
     uuid: str  # the uuid is used to index S3
     mimetype: str
-    uri: str
+    pages: list[str]
     extension: str
 
 
@@ -234,15 +242,32 @@ async def list_documents(driver=Depends(get_neo4j_driver)):
             documents
         )
 
-        document_list = []
+        s3_client = get_s3_client()
+
+        document_list: List[Document] = []
         for document in documents:
-            document_list.append({
-                "name": document["name"],
-                "uuid": document["uuid"],
-                "mimetype": document["mimetype"],
-                "extension": document["extension"],
-                "uri": f"http://localhost:8000/api/v1/document/{document['uuid']}"
-            })
+
+            # Presign uris, client requests pages directly from zon.
+            pages: List[str] = []
+            for i in range(1, document["pages"]+1):
+                presigned_uri = s3_client.get_presigned_url(
+                    f"{document['uuid']}/page_{i}.{document['extension']}"
+                )
+
+                logger.info("Got URI=%s", presigned_uri)
+                if presigned_uri:
+                    pages.append(presigned_uri)
+
+            logger.info("pages=%s", pages)
+            document_list.append(
+                Document(
+                    name=document["name"],
+                    uuid=document["uuid"],
+                    mimetype=document["mimetype"],
+                    extension=document["extension"],
+                    pages=pages
+                )
+            )
 
         return {
             "documents": document_list

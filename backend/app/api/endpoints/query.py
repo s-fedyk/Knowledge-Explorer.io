@@ -4,12 +4,11 @@ from fastapi.responses import StreamingResponse
 import uuid
 import asyncio
 from pydantic import BaseModel
-from llama_index.core import VectorStoreIndex, StorageContext
-from app.client.db import index_infos_collection, queries_collection
+from llama_index.core import StorageContext
 from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
 from llama_index.core.indices.property_graph import PropertyGraphIndex
 from llama_index.core import StorageContext
-from app.dependencies import get_rag_engine, get_vector_store, get_graph_store
+from app.dependencies import get_vector_store, get_graph_store
 from app.logger import logger
 
 from app.client.mongo_client import get_index_info_collection, get_queries_collection

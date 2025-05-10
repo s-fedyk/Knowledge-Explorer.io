@@ -26,7 +26,8 @@ class DocumentsCollection(MongoDBBase):
                               doc_uuid: str,
                               name: str,
                               extension: str,
-                              mimetype: str
+                              mimetype: str,
+                              pages: int
                               ) -> Dict[str, Any]:
         """Create a new document record pointing to S3"""
 
@@ -36,6 +37,7 @@ class DocumentsCollection(MongoDBBase):
             "name": name,
             "extension": extension,
             "mimetype": mimetype,
+            "pages": pages,
             "created_at": now,
             "updated_at": now
         }
