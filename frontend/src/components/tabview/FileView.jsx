@@ -1,5 +1,4 @@
 import { Document, Page } from "react-pdf";
-import { useState } from "react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -9,24 +8,22 @@ import "react-pdf/dist/Page/TextLayer.css";
  * @param {Object} props.file - File object with type and content
  */
 const FileView = ({ file }) => {
-  const [numPages, setNumPages] = useState(null);
-
-  function onDocumentLoadSuccess({ numPages }) {
-    setNumPages(numPages);
-  }
-
   return file ? (
     <div className="flex justify-center items-center bg-gray-100 p-4 overflow-auto">
-      <div className="shadow-lg max-w-full ">
-        <Document file={file.uri} onLoadSuccess={onDocumentLoadSuccess}>
-          <Page
-            pageNumber={1}
-            className="bg-white"
-            width={500}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-          />
-        </Document>
+      <div className="h-full shadow-lg bg-gray-100">
+        {file.pages.map((uri, index) => (
+          <div key={index} className="p-4">
+            <Document file={uri}>
+              <Page
+                pageNumber={1}
+                className="bg-white border border-gray-400 shadow-md"
+                width={500}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+              />
+            </Document>
+          </div>
+        ))}
       </div>
     </div>
   ) : (

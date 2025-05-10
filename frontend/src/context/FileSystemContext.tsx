@@ -34,6 +34,7 @@ export const FileSystemProvider = ({ children }) => {
     const fetchDocuments = async () => {
       try {
         const documents = await Client.listDocuments();
+        console.log(documents);
         setDirectory(documents);
       } catch (err) {
         console.error("Error fetching documents:", err);

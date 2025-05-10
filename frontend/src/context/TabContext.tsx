@@ -75,7 +75,7 @@ export const TabProvider = ({ children }) => {
 
   const addFileTab = (file) => {
     const fileTab = {
-      name: "File",
+      name: file.name,
       type: "file",
       file: file,
     };

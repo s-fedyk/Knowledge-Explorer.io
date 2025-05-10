@@ -5,8 +5,7 @@ export interface Document {
   uuid: string;
   name: string;
   mimetype: string;
-  uri: string;
-  extension: string;
+  pages: string[];
 }
 
 export interface ListDocumentsParams {
