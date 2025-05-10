@@ -28,3 +28,4 @@ pymongo
 dnspython
 motor
 boto3
+pypdf
