@@ -9,14 +9,8 @@ import { useTabContext } from "@context/TabContext";
 function FileItem({ file }) {
   const { activeFile } = useFileSystemContext();
   const { handleFileClick } = useTabContext();
-
-  console.log("file item is ", file, "active is ", activeFile);
-
   // Check if file is active
   const isActive = activeFile?.uuid === file?.uuid;
-
-  console.log(isActive);
-
   return (
     <li
       className={`p-2 flex items-center cursor-pointer transition-all duration-50 ${

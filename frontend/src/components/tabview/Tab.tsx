@@ -1,10 +1,11 @@
-import { useMemo } from "React";
+import { useMemo } from "react";
 import { useTabContext } from "@context/TabContext";
 import TabIcon from "./TabIcon";
+import { X } from "lucide-react"; // Importing X icon from lucide-react
 
 function Tab({ tab }) {
-  const { activeTabId, handleTabClick } = useTabContext();
-  const active = activeTabId == tab.id;
+  const { activeTabId, handleTabClick, handleCloseTab } = useTabContext();
+  const active = activeTabId === tab.id;
   const textColor = active ? "text-black" : "text-gray-400";
 
   const classes = useMemo(() => {
@@ -14,6 +15,13 @@ function Tab({ tab }) {
         : "hover:bg-gray-50 text-gray-400"
     }`;
   }, [activeTabId, tab.id]);
+
+  // Handle close button click without triggering tab selection
+  const onCloseClick = (e) => {
+    console.log("file is", tab.file);
+    e.stopPropagation(); // Prevent event from bubbling up to parent div
+    handleCloseTab(tab);
+  };
 
   return (
     <div
@@ -25,7 +33,18 @@ function Tab({ tab }) {
       <span className={`pl-2 truncate border:none ${textColor}`}>
         {tab.name}
       </span>
-      {/* Only show close button if not the chat tab */}
+      {/* Only show close button if not the default chat tab */}
+      {tab.close && (
+        <div
+          className="ml-2 transition-colors duration-150"
+          onClick={onCloseClick}
+        >
+          <X
+            size={16}
+            className="text-gray-500 hover:text-red-500 transition-colors duration-150"
+          />
+        </div>
+      )}
     </div>
   );
 }

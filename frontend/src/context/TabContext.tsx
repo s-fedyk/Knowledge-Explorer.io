@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useRef,
-} from "react";
+import React, { createContext, useContext, useState, useRef } from "react";
 import { nanoid } from "nanoid";
 
 // Create context
@@ -29,37 +23,43 @@ export const useTabContext = () => {
  */
 export const TabProvider = ({ children }) => {
   const [activeTabId, setActiveTabId] = useState(1);
-  const [tabs, setTabs] = useState([{ id: 1, name: "Chat", type: "chat" }]);
+  const [tabs, setTabs] = useState([
+    {
+      id: 1,
+      name: "Chat",
+      type: "chat",
+      close: false,
+    },
+  ]);
 
-  const UUIDToTabIDRef = useRef({});
+  const UUIDToTabIDRef = useRef(new Map());
   const handleFileClick = (file) => {
     const UUID = file.uuid;
-    if (UUID in UUIDToTabIDRef.current) {
-      handleTabClick(UUIDToTabIDRef.current[UUID]);
+    if (UUIDToTabIDRef.current.has(UUID)) {
+      handleTabClick(UUIDToTabIDRef.current.get(UUID));
       return;
     }
 
     const tabID = addFileTab(file);
-    UUIDToTabIDRef.current[UUID] = tabID;
+    UUIDToTabIDRef.current.set(UUID, tabID);
     handleTabClick(tabID);
   };
 
-  // Handle tab selection
   const handleTabClick = (tabId) => {
     setActiveTabId(tabId);
   };
 
-  // Handle tab closing
-  const handleCloseTab = (tabId) => {
-    // Don't allow closing the chat tab
-    if (tabId === 1) return;
+  const handleCloseTab = (tab) => {
+    const removeID = tab.id;
+    setTabs((prevTabs) => prevTabs.filter((tab) => tab.id !== removeID));
 
-    // Remove the tab
-    setTabs((prevTabs) => prevTabs.filter((tab) => tab.id !== tabId));
+    if (tab?.file.uuid) {
+      const fileUUID = tab.file.uuid;
+      UUIDToTabIDRef.current.delete(fileUUID);
+    }
 
-    // If we're closing the active tab, switch to the first available tab
-    if (activeTabId === tabId) {
-      setActiveTabId(1); // Default to chat tab
+    if (activeTabId === removeID) {
+      setActiveTabId(1);
     }
   };
 
@@ -78,6 +78,7 @@ export const TabProvider = ({ children }) => {
       name: file.name,
       type: "file",
       file: file,
+      close: true,
     };
     const newTabId = addTab(fileTab);
     return newTabId;
@@ -89,6 +90,7 @@ export const TabProvider = ({ children }) => {
       name: "Graph",
       type: "graph",
       nodes: nodes,
+      close: true,
     };
     const newTabId = addTab(graphTab);
     return newTabId;
