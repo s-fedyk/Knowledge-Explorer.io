@@ -1,5 +1,4 @@
 # LLM RAG Backend with Neo4j
-
 A Retrieval-Augmented Generation (RAG) backend using FastAPI, LlamaIndex, Neo4j, and Docker.
 
 ## Features

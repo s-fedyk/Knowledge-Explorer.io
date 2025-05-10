@@ -126,7 +126,7 @@ async def process_document(file_path: Path, filename: str):
         # we use a uuid to identify the file, so there
         # are no collisions in storage.
         doc_uuid = file_path.stem
-        extension = file_path.suffix
+        extension = os.path.splitext(filename)[1][1:]
 
         loader = PDFReader()
         documents = loader.load_data(file=file_path)
@@ -180,6 +180,8 @@ async def process_document(file_path: Path, filename: str):
             raise Exception("Unknown file type")
 
         documents_collection = await get_documents_collection()
+
+        logger.info("Extension is %s", extension)
         await documents_collection.create_document(
             doc_uuid=doc_uuid,
             name=filename,
@@ -207,6 +209,8 @@ class Document(BaseModel):
     name: str
     uuid: str  # the uuid is used to index S3
     mimetype: str
+    uri: str
+    extension: str
 
 
 class DocumentList(BaseModel):
@@ -224,7 +228,6 @@ async def list_documents(driver=Depends(get_neo4j_driver)):
     logger.info("List documents request")
     try:
         documents_collection = await get_documents_collection()
-
         documents = await documents_collection.list_documents()
         logger.info(
             "Documents=%s",
@@ -237,6 +240,8 @@ async def list_documents(driver=Depends(get_neo4j_driver)):
                 "name": document["name"],
                 "uuid": document["uuid"],
                 "mimetype": document["mimetype"],
+                "extension": document["extension"],
+                "uri": f"http://localhost:8000/api/v1/document/{document['uuid']}"
             })
 
         return {
@@ -272,7 +277,7 @@ async def download_document(uuid: str):
         s3_client = get_s3_client()
 
         extension: str = document["extension"]
-        object_name: str = f"{uuid}{extension}"
+        object_name: str = f"{uuid}.{extension}"
 
         file_content = s3_client.download(object_name)
 

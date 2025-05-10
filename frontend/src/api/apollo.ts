@@ -79,9 +79,6 @@ export const useNodesWithRelations = (
     variables: { ids },
     fetchPolicy: "network-only",
   });
-
-  console.log(data);
-
   return {
     loading,
     error,

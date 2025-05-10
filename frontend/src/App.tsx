@@ -181,8 +181,8 @@ function App() {
 
   return (
     <ApolloProvider client={client}>
-      <FileSystemProvider>
-        <TabProvider>
+      <TabProvider>
+        <FileSystemProvider>
           <MessageProvider>
             {/* Use h-screen but remove w-screen */}
             <div className="flex h-screen w-screen bg-gray-100">
@@ -205,8 +205,8 @@ function App() {
               </div>
             </div>
           </MessageProvider>
-        </TabProvider>
-      </FileSystemProvider>
+        </FileSystemProvider>
+      </TabProvider>
     </ApolloProvider>
   );
 }

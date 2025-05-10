@@ -1,4 +1,5 @@
-import React from "react";
+// TabView.js
+import React, { useState, useEffect, useRef } from "react";
 import ChatWindow from "./ChatWindow";
 import FileView from "./FileView";
 import GraphView from "./GraphView";
@@ -7,6 +8,7 @@ import Tab from "./Tab";
 import { useTabContext } from "@context/TabContext";
 import { useFileSystemContext } from "@context/FileSystemContext";
 import { GraphViewProvider } from "@context/GraphViewContext";
+
 /**
  * TabView component for managing multiple tabs, including chat and file viewers
  * @param {Object} props - Component props
@@ -16,13 +18,13 @@ import { GraphViewProvider } from "@context/GraphViewContext";
  */
 const TabView = () => {
   const { tabs, activeTabId } = useTabContext();
-  const { file } = useFileSystemContext();
 
   // Render tab content based on type
   const renderTabContent = (tab) => {
     switch (tab.type) {
       case "file":
-        return <FileView file={file} />;
+        // Make sure to use tab.file, not activeFile
+        return <FileView file={tab.file} />;
       case "graph":
         return (
           <GraphViewProvider>
@@ -33,15 +35,16 @@ const TabView = () => {
         return <ChatWindow />;
     }
   };
+
   return (
     <div className="h-full w-full flex flex-col bg-gray-200 overflow-hidden">
       {/* Tabs navigation */}
       <div className="flex flex-none bg-white border-b border-gray-400 overflow-x-auto text-lg">
         {tabs.map((tab) => (
-          <Tab tab={tab} />
+          <Tab key={tab.id} tab={tab} />
         ))}
       </div>
-      {/* Tab content area - changed from flex-grow to flex-1 and overflow-auto */}
+      {/* Tab content area */}
       <div className="flex-1 overflow-auto">
         {tabs.map((tab) => (
           <div
@@ -55,4 +58,5 @@ const TabView = () => {
     </div>
   );
 };
+
 export default TabView;

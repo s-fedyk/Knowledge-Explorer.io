@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import { nanoid } from "nanoid";
 
 // Create context
@@ -21,17 +27,22 @@ export const useTabContext = () => {
  * @param {Object} props - Component props
  * @param {React.ReactNode} props.children - Child components
  */
-export const TabProvider = ({ children, file }) => {
+export const TabProvider = ({ children }) => {
   const [activeTabId, setActiveTabId] = useState(1);
-  const [tabs, setTabs] = useState([
-    { id: 1, name: "Chat", type: "chat" },
-    {
-      id: 2,
-      name: "File",
-      type: "file",
-      file: file,
-    },
-  ]);
+  const [tabs, setTabs] = useState([{ id: 1, name: "Chat", type: "chat" }]);
+
+  const UUIDToTabIDRef = useRef({});
+  const handleFileClick = (file) => {
+    const UUID = file.uuid;
+    if (UUID in UUIDToTabIDRef.current) {
+      handleTabClick(UUIDToTabIDRef.current[UUID]);
+      return;
+    }
+
+    const tabID = addFileTab(file);
+    UUIDToTabIDRef.current[UUID] = tabID;
+    handleTabClick(tabID);
+  };
 
   // Handle tab selection
   const handleTabClick = (tabId) => {
@@ -60,6 +71,16 @@ export const TabProvider = ({ children, file }) => {
     };
     setTabs((prevTabs) => [...prevTabs, newTab]);
     return newTab.id;
+  };
+
+  const addFileTab = (file) => {
+    const fileTab = {
+      name: "File",
+      type: "file",
+      file: file,
+    };
+    const newTabId = addTab(fileTab);
+    return newTabId;
   };
 
   // Add graph tab
@@ -99,8 +120,10 @@ export const TabProvider = ({ children, file }) => {
     tabs,
     activeTabId,
     handleTabClick,
+    handleFileClick,
     handleCloseTab,
     addTab,
+    addFileTab,
     addGraphTab,
     getTabIcon,
   };

@@ -4,6 +4,7 @@ import type {
   QueryResponse,
   UploadDocumentRequest,
   UploadDocumentResponse,
+  DocumentDownloadResponse,
   GraphRequest,
   GraphNode,
   GraphRelationship,
@@ -54,7 +55,7 @@ export class APIClient {
 
       const resp = (await response.json()) as DocumentsResponse;
 
-      return resp.documents
+      return resp.documents;
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;

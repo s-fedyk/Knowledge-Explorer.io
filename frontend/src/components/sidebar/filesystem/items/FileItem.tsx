@@ -1,15 +1,21 @@
 // FileItem.jsx
 import React from "react";
 import { useFileSystemContext } from "@context/FileSystemContext";
+import { useTabContext } from "@context/TabContext";
 
 /**
  * FileItem component with a clean design and subtle glow effect when selected
  */
 function FileItem({ file }) {
-  const { activeFile, handleFileSelect } = useFileSystemContext();
+  const { activeFile } = useFileSystemContext();
+  const { handleFileClick } = useTabContext();
+
+  console.log("file item is ", file, "active is ", activeFile);
 
   // Check if file is active
-  const isActive = activeFile && activeFile.uuid === file.uuid;
+  const isActive = activeFile?.uuid === file?.uuid;
+
+  console.log(isActive);
 
   return (
     <li
@@ -17,7 +23,7 @@ function FileItem({ file }) {
         isActive ? "bg-gray-100" : "hover:bg-gray-50"
       }`}
       onClick={() => {
-        handleFileSelect(file);
+        handleFileClick(file);
       }}
     >
       {/* File icon with glow effect when active */}

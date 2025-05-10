@@ -1,25 +1,24 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import EmptyState from "./EmptyState";
 import FolderView from "./FolderView";
-import { useFileSystemContext } from "@context/FileSystemContext";
 
-/**
- * FileSystem component for managing file navigation and operations
- */
-function FileSystem() {
-  const {
-    currentPath,
-    canGoBack,
-    canGoForward,
-    navigateBack,
-    navigateForward,
-    handleFileUpload,
-  } = useFileSystemContext();
-
+function FileSystem({
+  directory = {},
+  activeFile,
+  onFileSelect,
+  onFileUpload,
+  onFileRemove,
+}) {
   const fileInputRef = useRef(null);
 
-  const handleFileInputChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFileUpload(Array.from(e.target.files), currentPath);
+  const [currentPath, setCurrentPath] = useState("/");
+  const [navigationHistory, setNavigationHistory] = useState(["/"]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const handleFileUpload = (files, targetPath = currentPath) => {
+    if (files && files.length > 0) {
+      onFileUpload(files, targetPath);
+
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -33,19 +32,19 @@ function FileSystem() {
         type="file"
         ref={fileInputRef}
         className="hidden"
-        onChange={handleFileInputChange}
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            handleFileUpload(Array.from(e.target.files));
+          }
+        }}
         multiple
         webkitdirectory="true"
         directory="true"
       />
-      <div className="flex text-gray-400 border-b border-t border-gray-400">
+      <div className="flex text-gray-200 border-b border-gray-400">
         <button
-          className={`hover:bg-gray-200 hover:text-white transition-colors ${
-            !canGoBack ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-          }`}
+          className={`hover:bg-gray-200 hover:text-white transition-colors `}
           title="Back"
-          onClick={navigateBack}
-          disabled={!canGoBack}
         >
           <svg
             className="w-4 h-4"
@@ -61,13 +60,10 @@ function FileSystem() {
             />
           </svg>
         </button>
+
         <button
-          className={`hover:bg-gray-200 hover:text-white transition-colors ${
-            !canGoForward ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-          }`}
+          className={`hover:bg-gray-200 hover:text-white transition-colors`}
           title="Forward"
-          onClick={navigateForward}
-          disabled={!canGoForward}
         >
           <svg
             className="w-4 h-4"
@@ -84,7 +80,16 @@ function FileSystem() {
           </svg>
         </button>
       </div>
-      <FolderView />
+      <FolderView
+        currentPath={currentPath}
+        directory={directory}
+        activeFile={activeFile}
+        canGoBack={historyIndex > 0}
+        canGoForward={historyIndex < navigationHistory.length - 1}
+        onFileSelect={onFileSelect}
+        onFileRemove={onFileRemove}
+        onFileUpload={handleFileUpload}
+      />
     </div>
   );
 }
