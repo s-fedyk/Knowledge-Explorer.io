@@ -12,6 +12,10 @@ import { FileSystemProvider } from "@context/FileSystemContext";
 import NavSidebar from "./components/sidebar/NavSidebar";
 import TabView from "./components/tabview/TabView";
 
+// TODO putting this in public might be a bit more prod-ready.
+import { pdfjs } from "react-pdf";
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
 const useRAG = () => {
   const [documents, setDocuments] = useState({});
 
