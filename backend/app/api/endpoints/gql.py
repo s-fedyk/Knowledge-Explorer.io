@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 import strawberry
 from strawberry.fastapi import GraphQLRouter
 from app.dependencies import get_neo4j_driver
@@ -8,8 +8,11 @@ driver = get_neo4j_driver()
 @strawberry.type
 class Node:
     id: strawberry.ID
+    labels: list[str]
     caption: str
     description: str
+    file: Optional[str]
+    page_number: Optional[int]
 
 
 @strawberry.type
@@ -18,6 +21,9 @@ class Relationship:
     from_: strawberry.ID = strawberry.field(name="from")
     to: strawberry.ID
     caption: str
+    description: Optional[str]
+    file: Optional[str]
+    page_number: Optional[int]
 
 
 @strawberry.type
@@ -71,14 +77,16 @@ def _fetch_related_nodes(tx, ids: List[str]):
             node1 {
                 .*,
                 id: ID(node1),
-                caption: node1.id
+                caption: node1.id,
+                labels: labels(node1)
             }
           ) +
           COLLECT(DISTINCT
             node2 {
                 .*,
                 id: ID(node2),
-                caption: node2.id
+                caption: node2.id,
+                labels: labels(node2)
             }
           ) AS n1,
           COLLECT(DISTINCT
@@ -112,7 +120,13 @@ class Query:
                 records.append(
                     Node(
                         id=rec["id"],
-                        caption=rec["caption"]
+                        caption=rec["caption"],
+                        description=rec["entity_description"] if "entity_description" in rec.keys(
+                        ) else rec["text"],  # We only have entities or text nodes.
+                        file=rec["file_name"] if "entity_description" in rec.keys(
+                        ) else None,
+                        page_number=rec["page_label"] if "page_label" in rec.keys(
+                        ) else None
                     )
                 )
         return records
@@ -134,7 +148,12 @@ class Query:
                         id=rec["id"],
                         caption=rec["caption"],
                         description=rec["entity_description"] if "entity_description" in rec.keys(
-                        ) else rec["text"]  # We only have entities or text nodes.
+                        ) else rec["text"],  # We only have entities or text nodes.
+                        file=rec["file_name"] if "entity_description" in rec.keys(
+                        ) else None,
+                        page_number=rec["page_label"] if "page_label" in rec.keys(
+                        ) else None,
+                        labels=rec["labels"]
                     )
                 )
 
@@ -144,7 +163,13 @@ class Query:
                         id=rec["_id"],
                         from_=rec["from"],
                         to=rec["to"],
-                        caption=rec["caption"]
+                        caption=rec["caption"],
+                        description=rec["relationship_description"] if "relationship_description" in rec.keys(
+                        ) else None,
+                        file=rec["file_name"] if "file_name" in rec.keys(
+                        ) else None,
+                        page_number=rec["page_label"] if "page_label" in rec.keys(
+                        ) else None
                     )
                 )
 

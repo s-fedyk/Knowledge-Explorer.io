@@ -18,7 +18,6 @@ function Tab({ tab }) {
 
   // Handle close button click without triggering tab selection
   const onCloseClick = (e) => {
-    console.log("file is", tab.file);
     e.stopPropagation(); // Prevent event from bubbling up to parent div
     handleCloseTab(tab);
   };
