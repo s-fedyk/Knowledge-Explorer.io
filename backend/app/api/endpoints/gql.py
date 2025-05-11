@@ -78,16 +78,16 @@ def _fetch_related_nodes(tx, ids: List[str]):
                 .*,
                 id: ID(node1),
                 caption: node1.id,
-                labels: labels(node1)
-            }
+                labels: [label IN labels(node1) WHERE NOT label STARTS WITH '__']            
+                }
           ) +
           COLLECT(DISTINCT
             node2 {
                 .*,
                 id: ID(node2),
                 caption: node2.id,
-                labels: labels(node2)
-            }
+                labels: [label IN labels(node2) WHERE NOT label STARTS WITH '__']            
+                }
           ) AS n1,
           COLLECT(DISTINCT
             r2 {
