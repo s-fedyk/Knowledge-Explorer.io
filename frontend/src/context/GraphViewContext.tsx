@@ -7,22 +7,29 @@ import React, {
 } from "react";
 import type { Node, Relationship } from "@api/apollo.ts";
 
+// Define a union type for selected elements
+type SelectedElement = Node | Relationship;
+
 // Define the context state type
 interface GraphViewContextState {
-  // Selected node state
-  selectedNode: Node | null;
+  // Selected element state
+  selectedElement: SelectedElement | null;
+  selectedElementType: "node" | "relationship" | null;
   isExitingSidebar: boolean;
-
   // Action methods
-  selectNode: (node: Node) => void;
+  selectElement: (
+    element: SelectedElement,
+    type: "node" | "relationship",
+  ) => void;
   closeSidebar: () => void;
 }
 
 // Create the context with default values
 const GraphViewContext = createContext<GraphViewContextState>({
-  selectedNode: null,
+  selectedElement: null,
+  selectedElementType: null,
   isExitingSidebar: false,
-  selectNode: () => {},
+  selectElement: () => {},
   closeSidebar: () => {},
 });
 
@@ -37,35 +44,44 @@ interface GraphViewProviderProps {
 export const GraphViewProvider: React.FC<GraphViewProviderProps> = ({
   children,
 }) => {
-  // State for the selected node and animation
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  // State for the selected element and animation
+  const [selectedElement, setSelectedElement] =
+    useState<SelectedElement | null>(null);
+  const [selectedElementType, setSelectedElementType] = useState<
+    "node" | "relationship" | null
+  >(null);
   const [isExitingSidebar, setIsExitingSidebar] = useState(false);
 
-  // Handle selecting a node
-  const selectNode = useCallback(
-    (node: Node) => {
-      setSelectedNode(node);
+  // Handle selecting an element (node or relationship)
+  const selectElement = useCallback(
+    (element: SelectedElement, type: "node" | "relationship") => {
+      setIsExitingSidebar(false);
+      setSelectedElement(element);
+      setSelectedElementType(type);
     },
-    [selectedNode],
+    [],
   );
 
   // Handle closing the sidebar with animation
   const closeSidebar = useCallback(() => {
-    if (!selectedNode && !isExitingSidebar) return;
+    if (!selectedElement && !isExitingSidebar) return;
 
     setIsExitingSidebar(true);
+
     // Wait for animation to complete before removing component
     setTimeout(() => {
       setIsExitingSidebar(false);
-      setSelectedNode(null);
+      setSelectedElement(null);
+      setSelectedElementType(null);
     }, 300); // match this with animation duration
-  }, [selectedNode, isExitingSidebar]);
+  }, [selectedElement, isExitingSidebar]);
 
   // Create the context value object
   const contextValue: GraphViewContextState = {
-    selectedNode,
+    selectedElement,
+    selectedElementType,
     isExitingSidebar,
-    selectNode,
+    selectElement,
     closeSidebar,
   };
 

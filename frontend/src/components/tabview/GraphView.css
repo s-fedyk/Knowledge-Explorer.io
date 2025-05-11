@@ -1,24 +1,19 @@
-/* Animation for sliding in the sidebar */
+/* Slide-in animation for sidebar */
 @keyframes slideIn {
   from {
     transform: translateX(100%);
-    opacity: 0;
   }
   to {
     transform: translateX(0);
-    opacity: 1;
   }
 }
 
-/* Animation for sliding out the sidebar */
 @keyframes slideOut {
   from {
     transform: translateX(0);
-    opacity: 1;
   }
   to {
     transform: translateX(100%);
-    opacity: 0;
   }
 }
 
@@ -30,8 +25,8 @@
   animation: slideOut 0.1s ease-out forwards;
 }
 
-/* Add a semi-transparent background to the sidebar for better visibility over the graph */
-.node-sidebar {
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(4px);
+/* Additional styling for element sidebar */
+.element-sidebar {
+  background-color: white;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
 }
