@@ -37,7 +37,7 @@ const TabView = () => {
   }, [tabs, activeTabId, renderTabContent]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-gray-100 overflow-hidden">
+    <div className="h-full w-full flex flex-col bg-gray-200 overflow-hidden">
       {/* Tabs navigation */}
       <div className="flex flex-none bg-white border-b border-gray-400 overflow-x-auto text-lg">
         {tabs.map((tab) => (
@@ -45,7 +45,7 @@ const TabView = () => {
         ))}
       </div>
       {/* Tab content area */}
-      <div className="flex-1 overflow-auto">{tabsContent}</div>
+      <div className="flex-1 overflow-auto bg-gray-100">{tabsContent}</div>
     </div>
   );
 };

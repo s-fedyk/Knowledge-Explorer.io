@@ -21,6 +21,9 @@ export interface Node {
   id: string;
   caption?: string;
   description?: string;
+  labels: string[];
+  file: string;
+  pageNumber: int;
 }
 
 export interface Relationship {
@@ -28,6 +31,9 @@ export interface Relationship {
   from: string;
   to: string;
   caption?: string;
+  description?: string;
+  file: string;
+  pagenumber: int;
 }
 
 export interface NodeAndRelationship {
@@ -49,14 +55,20 @@ export const NODES_WITH_RELATIONS_QUERY = gql`
     nodesWithRelations(ids: $ids) {
       nodes {
         id
+        labels
         caption
         description
+        file
+        pageNumber
       }
       rels {
         id
         from
         to
         caption
+        description
+        file
+        pageNumber
       }
     }
   }
@@ -79,6 +91,8 @@ export const useNodesWithRelations = (
     variables: { ids },
     fetchPolicy: "network-only",
   });
+  console.log("DATA:", data);
+
   return {
     loading,
     error,

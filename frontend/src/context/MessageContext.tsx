@@ -49,6 +49,8 @@ export const MessageProvider = ({ children }) => {
   });
 
   const addMessage = (sender, text, sections = []) => {
+    console.log("message", sender, text);
+
     setMessages((prev) => [
       ...prev,
       {
