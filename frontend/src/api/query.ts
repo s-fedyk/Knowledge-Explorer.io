@@ -125,7 +125,6 @@ export class APIClient {
           // Clean up the session
 
           if (onComplete) onComplete(queryId);
-          this.deleteSession(queryId).catch(console.error);
           return;
         }
 
@@ -134,8 +133,6 @@ export class APIClient {
 
       eventSource.onerror = (error) => {
         eventSource.close();
-
-        this.deleteSession(queryId).catch(console.error);
         if (onError) {
           onError(
             this.createApiError(
@@ -151,7 +148,6 @@ export class APIClient {
 
       return () => {
         eventSource.close();
-        this.deleteSession(queryId).catch(console.error);
       };
     } catch (error) {
       if (onError) {
@@ -196,20 +192,6 @@ export class APIClient {
         },
         500,
       );
-    }
-  }
-
-  /**
-   * Deletes a session
-   * @param queryId The session ID to delete
-   */
-  private async deleteSession(queryId: string): Promise<void> {
-    try {
-      await fetch(`${API_ENDPOINTS.SESSION}/${queryId}`, {
-        method: "DELETE",
-      });
-    } catch (error) {
-      console.error("Failed to delete session:", error);
     }
   }
 
