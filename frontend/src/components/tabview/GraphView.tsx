@@ -1,10 +1,80 @@
 import type { HitTargets, Node, Relationship } from "@neo4j-nvl/base";
 import { InteractiveNvlWrapper } from "@neo4j-nvl/react";
 import type { MouseEventCallbacks } from "@neo4j-nvl/react";
-import React, { FC } from "react";
+import React, { FC, useState, useEffect, useMemo } from "react";
 import { useNodesWithRelations } from "@api/apollo.ts";
 import { useGraphView } from "@context/GraphViewContext";
 import "./GraphView.css"; // For the slide animations
+
+/**
+ * Assigns vibrant colors to nodes based on their labels
+ * @param {Array} nodes - The array of nodes to process
+ * @returns {Array} The same nodes with colors assigned
+ */
+function assignColors(nodes) {
+  // Vibrant colors that will "pop" against a gray-white background
+  const glowColors = [
+    "#FF006E", // Hot Pink
+    "#3A86FF", // Bright Blue
+    "#8338EC", // Vibrant Purple
+    "#FB5607", // Vermilion
+    "#06D6A0", // Mint
+    "#FFBE0B", // Amber
+    "#00BBF9", // Cyan
+    "#9B5DE5", // Amethyst
+    "#F15BB5", // Magenta
+    "#00F5D4", // Aquamarine
+    "#7209B7", // Deep Purple
+  ];
+
+  // Collect all unique labels
+  const uniqueLabels = new Set();
+  nodes.forEach((node) => {
+    if (node.labels && node.labels.length > 0) {
+      node.labels.forEach((label) => uniqueLabels.add(label));
+    }
+  });
+
+  // Map labels to colors
+  const labelColorMap = {};
+  Array.from(uniqueLabels).forEach((label, index) => {
+    labelColorMap[label] = glowColors[index % glowColors.length];
+  });
+
+  // Assign colors to nodes
+  return nodes.map((node) => {
+    // Default color for nodes without labels
+    if (!node.labels || node.labels.length === 0) {
+      return {
+        ...node,
+        color: "#A0AEC0", // Neutral gray
+        size: 25,
+        stroke: "#FFFFFF",
+        strokeWidth: 3,
+      };
+    }
+
+    // For nodes with one label, use that label's color
+    if (node.labels.length === 1) {
+      return {
+        ...node,
+        color: labelColorMap[node.labels[0]],
+        size: 25,
+        stroke: "#FFFFFF",
+        strokeWidth: 3,
+      };
+    }
+
+    // For nodes with multiple labels, use the first one's color
+    return {
+      ...node,
+      color: labelColorMap[node.labels[0]],
+      size: 25,
+      stroke: "#FFFFFF",
+      strokeWidth: 3,
+    };
+  });
+}
 
 // Component for displaying node content
 interface NodeContentProps {
@@ -34,6 +104,11 @@ const NodeContent: FC<NodeContentProps> = ({ node }) => {
           </div>
         </div>
       )}
+
+      <div>
+        <h3 className="text-sm font-medium text-gray-500">Labels</h3>
+        <p className="mt-1 text-sm text-gray-900">{node.labels}</p>
+      </div>
 
       {/* Node properties */}
       {node.properties && Object.keys(node.properties).length > 0 && (
@@ -183,24 +258,46 @@ function GraphView({ nodes }: GraphViewProps) {
     closeSidebar,
   } = useGraphView();
 
+  const [colorAssignments, setColorAssignments] = useState(null);
+  useEffect(() => {
+    if (data && data.nodes) {
+      const assignments = assignColors(data.nodes);
+      assignColors(assignments);
+    }
+  }, [data]);
+
+  // Apply colors to nodes before rendering
+  const nodesWithColors = useMemo(() => {
+    if (data && data.nodes) {
+      return assignColors(data.nodes);
+    }
+    return [];
+  }, [data]);
+
   const mouseEventCallbacks: MouseEventCallbacks = {
     onHover: (
       element: Node | Relationship,
       hitTargets: HitTargets,
       evt: MouseEvent,
-    ) => console.log("onHover", element, hitTargets, evt),
+    ) => {},
     onRelationshipRightClick: (
       rel: Relationship,
       hitTargets: HitTargets,
       evt: MouseEvent,
-    ) => console.log("onRelationshipRightClick", rel, hitTargets, evt),
+    ) => {},
     onNodeClick: (node: Node, hitTargets: HitTargets, evt: MouseEvent) => {
       selectElement(node, "node");
     },
-    onNodeRightClick: (node: Node, hitTargets: HitTargets, evt: MouseEvent) =>
-      console.log("onNodeRightClick", node, hitTargets, evt),
-    onNodeDoubleClick: (node: Node, hitTargets: HitTargets, evt: MouseEvent) =>
-      console.log("onNodeDoubleClick", node, hitTargets, evt),
+    onNodeRightClick: (
+      node: Node,
+      hitTargets: HitTargets,
+      evt: MouseEvent,
+    ) => {},
+    onNodeDoubleClick: (
+      node: Node,
+      hitTargets: HitTargets,
+      evt: MouseEvent,
+    ) => {},
     onRelationshipClick: (
       rel: Relationship,
       hitTargets: HitTargets,
@@ -212,32 +309,28 @@ function GraphView({ nodes }: GraphViewProps) {
       rel: Relationship,
       hitTargets: HitTargets,
       evt: MouseEvent,
-    ) => console.log("onRelationshipDoubleClick", rel, hitTargets, evt),
+    ) => {},
     onCanvasClick: (evt: MouseEvent) => {
       closeSidebar();
     },
-    onCanvasDoubleClick: (evt: MouseEvent) =>
-      console.log("onCanvasDoubleClick", evt),
-    onCanvasRightClick: (evt: MouseEvent) =>
-      console.log("onCanvasRightClick", evt),
-    onDrag: (nodes: Node[]) => console.log("onDrag", nodes),
-    onPan: (evt: MouseEvent) => console.log("onPan", evt),
-    onZoom: (zoomLevel: number) => console.log("onZoom", zoomLevel),
+    onCanvasDoubleClick: (evt: MouseEvent) => {},
+    onCanvasRightClick: (evt: MouseEvent) => {},
+    onDrag: (nodes: Node[]) => {},
+    onPan: (evt: MouseEvent) => {},
+    onZoom: (zoomLevel: number) => {},
   };
 
   if (loading) return <div>Loading graph data...</div>;
   if (error) return <div>Error loading graph: {error.message}</div>;
 
-  console.log(data);
-
   return (
     <div className="relative h-full w-full">
       <div className="h-full w-full">
         <InteractiveNvlWrapper
-          nodes={data ? data.nodes : []}
+          nodes={nodesWithColors}
           rels={data ? data.rels : []}
           mouseEventCallbacks={mouseEventCallbacks}
-          className="bg-gray-100 h-full"
+          className="bg-gray-100 h-full filter drop-shadow-lg"
         />
       </div>
 
