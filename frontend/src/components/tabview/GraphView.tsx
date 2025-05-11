@@ -70,17 +70,26 @@ const RelationshipContent: FC<RelationshipContentProps> = ({
 
       <div>
         <h3 className="text-sm font-medium text-gray-500">Type</h3>
-        <p className="mt-1 text-sm text-gray-900">{relationship.type}</p>
+        <p className="mt-1 text-sm text-gray-900">{relationship.caption}</p>
       </div>
+
+      {relationship.description && (
+        <div>
+          <h3 className="text-sm font-medium text-gray-500">Description</h3>
+          <p className="mt-1 text-sm text-gray-900">
+            {relationship.description}
+          </p>
+        </div>
+      )}
 
       <div>
         <h3 className="text-sm font-medium text-gray-500">Source</h3>
-        <p className="mt-1 text-sm text-gray-900">{relationship.fromId}</p>
+        <p className="mt-1 text-sm text-gray-900">{relationship.from}</p>
       </div>
 
       <div>
         <h3 className="text-sm font-medium text-gray-500">Target</h3>
-        <p className="mt-1 text-sm text-gray-900">{relationship.toId}</p>
+        <p className="mt-1 text-sm text-gray-900">{relationship.to}</p>
       </div>
 
       {/* Relationship properties */}
