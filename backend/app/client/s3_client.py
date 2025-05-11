@@ -4,7 +4,6 @@ import io
 from pathlib import Path
 from app.config import settings
 from botocore.exceptions import ClientError, NoCredentialsError
-from app.utils.logging_decorator import log_db_operation
 from typing import List
 import logging
 
@@ -25,6 +24,9 @@ class S3Client:
         Verify that we can connect to AWS and that the specified bucket exists.
         Just throw if we can't
         """
+        self.logger.info("Checking bucket connection...")
+        self.logger.info("head_bucket= %s", self.bucket_name)
+        self.logger.info("settings=%s", settings)
         self.s3_client.head_bucket(Bucket=self.bucket_name)
 
     def connect(self):
@@ -32,6 +34,7 @@ class S3Client:
         Initialize the S3 client with credentials and bucket information and verify the connection.
         :raises: ConnectionError if connection cannot be established
         """
+        self.logger.info("Connecting to AWS...")
         try:
             self.s3_client = boto3.client(
                 's3',
@@ -41,7 +44,8 @@ class S3Client:
             )
             self.is_connected = self.check_connection()
             self.logger.info(
-                f"Successfully connected to S3 bucket: {self.bucket_name}")
+                f"Successfully connected to S3 bucket: {self.bucket_name}"
+            )
 
         except NoCredentialsError:
             self.logger.error("No AWS credentials found")
@@ -75,7 +79,8 @@ class S3Client:
             # If upload failed, raise an exception
             if not success:
                 raise Exception(
-                    f"Failed to upload {file_path} to {object_name}")
+                    f"Failed to upload {file_path} to {object_name}"
+                )
 
     def upload_file(self, file_path: Path, object_name=None):
         """
@@ -196,7 +201,8 @@ class S3Client:
             return url
         except ClientError as e:
             self.logger.error(
-                f"Error generating presigned URL for {object_name}: {e}")
+                f"Error generating presigned URL for {object_name}: {e}"
+            )
             return None
 
 

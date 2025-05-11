@@ -28,6 +28,8 @@ class MongoDBBase:
             mongo_url = settings.mongo_url
             db_name = settings.mongo_db_name
 
+            logger.info("values = %s, %s", mongo_url, db_name)
+
             # Create async MongoDB client
             self.client = AsyncIOMotorClient(mongo_url)
 

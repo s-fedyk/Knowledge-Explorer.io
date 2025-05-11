@@ -1,22 +1,28 @@
-FROM python:3.11-slim
+FROM python:3.12-slim-bookworm
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-# Install system dependencies for Python packages
 RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better layer caching
+# Create a virtual environment
+RUN uv venv /app/.venv
+
+# Set environment variables to use the virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY uv.lock .
+COPY pyproject.toml .
+RUN uv sync --frozen --no-install-project --no-dev
 
-# Copy application code
-COPY . .
+COPY . ./app
+COPY .env .
 
-# Create necessary directories
 RUN mkdir -p data/documents vectorstore
 
-# Command to run the application
+ENTRYPOINT []
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
