@@ -19,6 +19,7 @@ class MongoDBClient(MongoDBBase):
 
     async def connect(self):
         """Connect to MongoDB and initialize all collections"""
+        logger.info("Attempting MongoDB connection...")
         result = await super().connect()
         if result:
             await self.queries.initialize()
