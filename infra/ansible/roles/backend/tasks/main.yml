@@ -1,0 +1,111 @@
+---
+# Update system packages
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  apt:
+    upgrade: yes
+    
+# Install required packages
+- name: Install required packages
+  apt:
+    name: 
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg-agent
+      - software-properties-common
+    state: present
+
+# Install Docker
+- name: Add Docker GPG apt key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker repository
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    state: present
+
+- name: Install Docker packages
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: present
+
+- name: Start Docker service
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+# Install AWS CLI
+- name: Install AWS CLI
+  apt:
+    name: awscli
+    state: present
+
+# Create directories for persistent data
+- name: Create app directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+  with_items:
+    - "/home/ubuntu/app/data"
+    - "/home/ubuntu/app/vectorstore"
+
+# Set up environment file template
+- name: Create environment file template
+  copy:
+    dest: /home/ubuntu/.env.template
+    content: |
+      OPENAI_API_KEY=your-api-key
+      ENV=production
+      NEO4J_URI=your-neo4j-uri
+      NEO4J_USERNAME=your-neo4j-username
+      NEO4J_PASSWORD=your-neo4j-password
+      MONGODB_URI=your-mongodb-uri
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+
+# Set up container run script
+- name: Create Docker run script
+  copy:
+    dest: /home/ubuntu/run-container.sh
+    content: |
+      #!/bin/bash
+      
+      # Login to ECR
+      aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+      
+      # Pull latest image
+      docker pull $ECR_REGISTRY/backend:latest
+      
+      # Stop and remove existing container
+      docker stop backend-app || true
+      docker rm backend-app || true
+      
+      # Run new container
+      docker run -d --name backend-app \
+        -p 8000:8000 \
+        --restart unless-stopped \
+        --env-file .env \
+        -v /home/ubuntu/app/data:/app/data \
+        -v /home/ubuntu/app/vectorstore:/app/vectorstore \
+        $ECR_REGISTRY/backend:latest
+      
+      # Clean up old images
+      docker image prune -af --filter "until=24h"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'

@@ -1,0 +1,4 @@
+---
+# Main playbook that includes all other playbooks
+- name: Configure backend server
+  import_playbook: backend.yml
