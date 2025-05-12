@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       API_BASE_URL: JSON.stringify(env.API_BASE_URL),
+      OAUTH_CLIENT_ID: JSON.stringify(env.OAUTH_CLIENT_ID),
     },
   };
 });
