@@ -13,9 +13,10 @@ RUN uv venv /app/.venv
 
 # Set environment variables to use the virtual environment
 ENV PATH="/app/.venv/bin:$PATH"
-COPY requirements.txt .
+
 COPY uv.lock .
 COPY pyproject.toml .
+
 RUN uv sync --frozen --no-install-project --no-dev
 
 COPY . ./app

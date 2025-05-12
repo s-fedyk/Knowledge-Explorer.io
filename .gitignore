@@ -51,3 +51,35 @@ app/api/endpoints/__pycache__/
 app/api/rag/__pycache__/
 data/
 
+# Terraform specific ignores
+**/.terraform/*
+
+# .tfstate files - these contain sensitive info and should be kept out of git
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude terraform lock files if you're collaborating with people on different terraform versions
+.terraform.lock.hcl
+
+# Exclude plan output files
+tfplan
+*.tfplan
+
+# Exclude variable files that might contain sensitive data
+*.tfvars
+*.tfvars.json
+
+# Exclude CLI configuration files
+.terraformrc
+terraform.rc
+
+# Exclude override files as they're usually environment-specific
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
