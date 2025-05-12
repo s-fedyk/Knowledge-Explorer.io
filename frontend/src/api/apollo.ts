@@ -6,8 +6,6 @@ import {
   createHttpLink,
 } from "@apollo/client";
 
-export const API_BASE_URL = "http://localhost:8000";
-
 const httpLink = createHttpLink({
   uri: `${API_BASE_URL}/graphql`,
 });
