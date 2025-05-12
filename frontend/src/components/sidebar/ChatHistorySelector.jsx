@@ -1,16 +1,14 @@
 import React from "react";
+import { GoogleLogin } from "@react-oauth/google";
+
 import { useChatHistoryContext } from "@context/ChatHistoryContext";
 
 /**
  * ChatHistorySelector component for displaying and selecting chat histories
  */
 function ChatHistorySelector() {
-  const {
-    chatHistories,
-    activeChatHistory,
-    handleSelectChatHistory,
-    handleCreateNewChat,
-  } = useChatHistoryContext();
+  const { chatHistories, activeChatHistory, handleSelectChatHistory } =
+    useChatHistoryContext();
 
   return (
     <div className="flex flex-col h-full">

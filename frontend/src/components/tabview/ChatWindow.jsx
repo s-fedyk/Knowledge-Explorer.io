@@ -3,6 +3,7 @@ import React, { useState, useRef } from "react";
 import { useMessageContext } from "@context/MessageContext";
 import MessageList from "./MessageList";
 
+import { GoogleLogin } from "@react-oauth/google";
 /**
  * ChatWindow component orchestrates the chat interface
  * It handles message display and user input coordination
@@ -27,7 +28,6 @@ const ChatWindow = () => {
       handleSend();
     }
   };
-
   return (
     <div className="flex flex-col h-full">
       {/* Messages area with controlled overflow */}
@@ -39,7 +39,6 @@ const ChatWindow = () => {
           messagesEndRef={messagesEndRef}
         />
       </div>
-
       {/* Input area */}
       <div className="flex-none bg-gray-100 p-4">
         <div className="flex w-full">
@@ -49,7 +48,7 @@ const ChatWindow = () => {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Ask a question about your documents..."
-            className="flex-grow text-gray-900 shadow-md p-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition duration-150 ease-in-out bg-white"
+            className="flex-grow rounded text-gray-900 shadow-md p-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition duration-150 ease-in-out bg-white"
             disabled={isStreaming}
           />
         </div>

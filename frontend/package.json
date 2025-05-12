@@ -12,6 +12,7 @@
   "dependencies": {
     "@apollo/client": "^3.13.8",
     "@neo4j-nvl/react": "^0.3.8",
+    "@react-oauth/google": "^0.12.2",
     "@tailwindcss/vite": "^4.1.5",
     "graphql": "^16.11.0",
     "lucide-react": "^0.509.0",
