@@ -26,7 +26,6 @@ class S3Client:
         """
         self.logger.info("Checking bucket connection...")
         self.logger.info("head_bucket= %s", self.bucket_name)
-        self.logger.info("settings=%s", settings)
         self.s3_client.head_bucket(Bucket=self.bucket_name)
 
     def connect(self):

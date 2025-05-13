@@ -23,6 +23,7 @@ router = APIRouter(tags=["query"])
 # Keep your existing models
 class QueryRequest(BaseModel):
     query: str
+    index: str
     similarity_top_k: int = 3
 
 
@@ -96,7 +97,7 @@ async def create_query(request: QueryRequest):
 
         # throws mongo server error on failure. Force client to retry?
         queries_collection = await get_queries_collection()
-        await queries_collection.create_query(query_id, request.query)
+        await queries_collection.create_query(query_id, request.index, request.query)
 
         return {"query_id": query_id}
     except Exception as e:
@@ -113,7 +114,6 @@ class QueryStatus(BaseModel):
 @router.get("/stream/{query_id}")
 async def stream_query_response(
         query_id: str,
-        vector_store=Depends(get_vector_store),
         graph_store=Depends(get_graph_store)):
     """
     Connect to a streaming endpoint using the query ID
@@ -122,6 +122,7 @@ async def stream_query_response(
     queries_collection = await get_queries_collection()
 
     query_data = await queries_collection.get_query(query_id)
+
     if not query_data:
         raise HTTPException(
             status_code=404,
@@ -129,12 +130,13 @@ async def stream_query_response(
         )
 
     query = query_data["query"]
+    vector_store = get_vector_store(query_data["index"])
 
     try:
         logger.info(f"Executing query {query_id}: {query}")
 
         index_infos_collection = await get_index_info_collection()
-        index_info = await index_infos_collection.get_index_info("index")
+        index_info = await index_infos_collection.get_index_info(query_data["index"])
 
         if index_info:
             if index_info["entity_info"]:

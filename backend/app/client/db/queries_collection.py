@@ -21,12 +21,16 @@ class QueriesCollection(MongoDBBase):
         await self.collection.create_index("created_at", expireAfterSeconds=3600)
 
     @log_db_operation
-    async def create_query(self, query_id: str, query_text: str) -> Dict[str, Any]:
+    async def create_query(self,
+                           query_id: str,
+                           query_index: str,
+                           query_text: str) -> Dict[str, Any]:
         now = datetime.utcnow()
         query_data = {
             "query_id": query_id,
             "status": "processing",
             "query": query_text,
+            "index": query_index,
             "created_at": now,
             "updated_at": now,
             "sources": None

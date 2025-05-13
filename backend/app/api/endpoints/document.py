@@ -115,6 +115,7 @@ def parse_fn(response_str: str) -> Any:
         logger.info(relationships)
 
         return entities, relationships
+
     except json.JSONDecodeError as e:
         print("Error parsing JSON:", e)
         return entities, relationships
@@ -148,7 +149,7 @@ async def process_document(file_path: Path, filename: str):
 
         storage_context = StorageContext.from_defaults(
             property_graph_store=get_graph_store(),
-            vector_store=get_vector_store()
+            vector_store=get_vector_store(doc_uuid)
         )
 
         kg_extractor = GraphRAGExtractor(
@@ -196,7 +197,7 @@ async def process_document(file_path: Path, filename: str):
 
         index_info_collection = await get_index_info_collection()
         await index_info_collection.update_index_info(
-            "index",
+            doc_uuid,
             entity_info,
             community_summary
         )
