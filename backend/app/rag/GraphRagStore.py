@@ -1,5 +1,3 @@
-import logging
-from pydantic import PrivateAttr
 from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
 from llama_index.core.llms import ChatMessage
 import re
@@ -9,11 +7,199 @@ from collections import defaultdict
 from llama_index.llms.openai import OpenAI
 from app.logger import logger
 
+PROJECT_GRAPH = """
+    MATCH (source)-[r]->(target)
+    RETURN gds.graph.project(
+      'louvrainGraph',
+      source,
+      target,
+      {},
+      { undirectedRelationshipTypes: ['*'] }
+    )
+"""
+
+EXTRACT_COMMUNITIES = """
+CALL gds.louvain.write(
+  'louvrainGraph',
+  {
+    writeProperty: 'communityIDs',
+    includeIntermediateCommunities: true
+  }
+)
+"""
+
+FINISH_EXTRACTION = "CALL gds.graph.drop('louvrainGraph')"
+PURGE_COMMUNITIES = "MATCH(n: Community) DETACH DELETE n"
+
+SET_NODE_LEVEL = """
+    MATCH (n)
+    SET n.level = 0
+"""
+
+CREATE_COMMUNITY = """
+MATCH (e:`__Entity__`)
+UNWIND range(0, size(e.communities) - 1 , 1) AS index
+CALL {
+  WITH e, index
+  WITH e, index
+  WHERE index = 0
+  MERGE (c:`__Community__` {id: toString(index) + '-' + toString(e.communities[index])})
+  ON CREATE SET c.level = index
+  MERGE (e)-[:IN_COMMUNITY]->(c)
+  RETURN count(*) AS count_0
+}
+CALL {
+  WITH e, index
+  WITH e, index
+  WHERE index > 0
+  MERGE (current:`__Community__` {id: toString(index) + '-' + toString(e.communities[index])})
+  ON CREATE SET current.level = index
+  MERGE (previous:`__Community__` {id: toString(index - 1) + '-' + toString(e.communities[index - 1])})
+  ON CREATE SET previous.level = index - 1
+  MERGE (previous)-[:IN_COMMUNITY]->(current)
+  RETURN count(*) AS count_1
+}
+RETURN count(*)
+"""
+
+CONNECT_COMMUNITY = """
+    MATCH (n)
+    WHERE n.communityIDs IS NOT NULL AND n.level = $last_level
+    MATCH (c:`__Community__` {id: n.communityIDs[0], level: $level})
+    CREATE (n)-[:IN_COMMUNITY]->(c)
+"""
+
+GET_COMMUNITIES = """
+        MATCH (c:Community {level: $level})
+        RETURN c.id as id, c.name AS name
+"""
+
+GET_COMMUNITY_ENTITY_DESCRIPTIONS = """
+    MATCH (c:Community {id: $community_id, level: $level})
+    MATCH (entity:`__Entity__`)-[:IN_COMMUNITY]->(c)
+    RETURN entity.name as name, entity.entity_description as description
+"""
+
+GET_COMMUNITY_RELATIONSHIP_DESCRIPTIONS = """
+    MATCH (c:Community {id: $community_id, level: $level})
+    MATCH (source:`__Entity__`)-[:IN_COMMUNITY]->(c)
+    MATCH (target:`__Entity__`)-[:IN_COMMUNITY]->(c)
+    MATCH (source)-[r]->(target)
+    RETURN source.name AS source_name,
+           target.name AS target_name,
+           r.relationship_description AS description
+"""
+
+SET_COMMUNITY_SUMMARY = """
+    MATCH (n:`__Community__` {id: $community_id, level: $level})
+    SET n.entity_description=$summary
+"""
+
+
+RANK_COMMUNITIES = """
+MATCH (c:__Community__)<-[:IN_COMMUNITY*]-(:__Entity__)<-[:MENTIONS]-(d:Document)
+WITH c, count(distinct d) AS rank
+SET c.community_rank = rank;
+"""
+
+COMMUNITY_SUMMARY_PROMPT = """
+You are provided with a set of entity and relationship descriptions from a knowledge graph.
+The entities are represented as {"name": "name goes here", "description": "description goe here"}
+
+The relationships are represented as {"source": "source entity here", "target": "target entity here", "description": "description goes here"} .
+
+The goal is to capture the most critical and relevant details that highlight the nature and significance of each relationship and entity. Ensure that the summary is coherent and integrates the information in a way that emphasizes the key aspects of the information.
+"""
+
 
 class GraphRAGStore(Neo4jPropertyGraphStore):
     community_summary = {}
     entity_info = None
     max_cluster_size = 5
+
+    def create_community_summary(self, level: int):
+        res = self.structured_query(
+            CREATE_COMMUNITY,
+            {
+                "level": level,
+                "last_level": level-1,
+            }
+        )
+        logger.info("Communities created... %s", res)
+        res = self.structured_query(
+            CONNECT_COMMUNITY,
+            {
+                "level": level,
+                "last_level": level-1,
+            }
+        )
+
+        res = self.structured_query(
+            RANK_COMMUNITIES
+        )
+        res = self.structured_query(
+            GET_COMMUNITIES,
+            {
+                "level": level
+
+            }
+        )
+        logger.info(res)
+        for community in res:
+            logger.info(community)
+            id = community["id"]
+
+            entity_descs = self.structured_query(
+                GET_COMMUNITY_ENTITY_DESCRIPTIONS,
+                {
+                    "level": level,
+                    "community_id": id
+                }
+            )
+            for entity in entity_descs:
+                logger.info(entity)
+
+            rel_descs = self.structured_query(
+                GET_COMMUNITY_RELATIONSHIP_DESCRIPTIONS,
+                {
+                    "level": level,
+                    "community_id": id
+                }
+            )
+            for rel in rel_descs:
+                logger.info(rel)
+
+            summary = self.generate_summary(entity_descs, rel_descs)
+
+            logger.info(summary)
+
+            res = self.structured_query(
+                SET_COMMUNITY_SUMMARY,
+                {
+                    "level": level,
+                    "community_id": id,
+                    "summary": summary
+                }
+            )
+            logger.info(res)
+
+    def generate_summary(self, entities, relationships):
+        """Generate summary for a given text using an LLM."""
+        messages = [
+            ChatMessage(
+                role="system",
+                content=COMMUNITY_SUMMARY_PROMPT,
+            ),
+            ChatMessage(
+                role="user",
+                content=(
+                    str(entities) + "\n" + str(relationships)
+                )
+            ),
+        ]
+        response = OpenAI().chat(messages)
+        clean_response = re.sub(r"^assistant:\s*", "", str(response)).strip()
+        return clean_response
 
     def generate_community_summary(self, text):
         """Generate summary for a given text using an LLM."""
@@ -35,8 +221,23 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
         clean_response = re.sub(r"^assistant:\s*", "", str(response)).strip()
         return clean_response
 
+    def rebuild_communities(self):
+        res = self.structured_query(PURGE_COMMUNITIES, {})
+        logger.info("community purge: %s", res)
+        res = self.structured_query(PROJECT_GRAPH, {})
+        logger.info("Project: %s", res)
+        res = self.structured_query(EXTRACT_COMMUNITIES, {})
+        logger.info("Extract: %s", res)
+        res = self.structured_query(FINISH_EXTRACTION, {})
+
+        res = self.structured_query(SET_NODE_LEVEL, {})
+
+        logger.info("Creating community summaries...")
+        self.create_community_summary(level=1)
+
     def build_communities(self):
         """Builds communities from the graph and summarizes them."""
+        self.rebuild_communities()
         nx_graph = self._create_nx_graph()
         community_hierarchical_clusters = hierarchical_leiden(
             nx_graph, max_cluster_size=self.max_cluster_size
