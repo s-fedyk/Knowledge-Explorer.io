@@ -24,34 +24,36 @@ const FileView = ({ file }) => {
 
   return file ? (
     <div className="flex justify-center items-center bg-gray-100 p-4 overflow-auto">
-      {file.pages.map((uri, index) => (
-        <div key={index} className="p-4">
-          {/* Placeholder that shows while loading */}
-          {loading && (
-            <div
-              className="bg-white border border-gray-400 shadow-md flex justify-center items-center"
-              style={{ width: "500px", height: "700px" }} // Fixed height based on typical PDF aspect ratio
-            >
-              <div className="animate-pulse text-gray-400">Loading...</div>
-            </div>
-          )}
+      <div className="h-full">
+        {file.pages.map((uri, index) => (
+          <div key={index} className="p-4">
+            {/* Placeholder that shows while loading */}
+            {loading && (
+              <div
+                className="bg-white border border-gray-400 shadow-md flex justify-center items-center"
+                style={{ width: "500px", height: "700px" }} // Fixed height based on typical PDF aspect ratio
+              >
+                <div className="animate-pulse text-gray-400">Loading...</div>
+              </div>
+            )}
 
-          <Document
-            file={uri}
-            onLoadSuccess={onDocumentLoadSuccess}
-            onLoadError={onDocumentLoadError}
-            loading=""
-          >
-            <Page
-              pageNumber={1}
-              className="bg-white border border-gray-400 shadow-md"
-              width={500}
-              renderTextLayer={true}
-              renderAnnotationLayer={true}
-            />
-          </Document>
-        </div>
-      ))}
+            <Document
+              file={uri}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading=""
+            >
+              <Page
+                pageNumber={1}
+                className="bg-white border border-gray-400 shadow-md"
+                width={500}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+              />
+            </Document>
+          </div>
+        ))}
+      </div>
     </div>
   ) : (
     <div className="flex justify-center items-center h-full bg-gray-100">
