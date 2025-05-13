@@ -2,6 +2,7 @@
 import React from "react";
 import EmptyState from "./EmptyState";
 import { useFileSystemContext } from "@context/FileSystemContext";
+import LoadingSpinner from "./LoadingSpinner.tsx";
 import FileItem from "./items/FileItem";
 import FolderItem from "./items/FolderItem";
 
@@ -9,7 +10,12 @@ import FolderItem from "./items/FolderItem";
  * FolderView component to display the contents of the current folder
  */
 function FolderView() {
-  const { currentPath, directory, navigateToFolder } = useFileSystemContext();
+  const { currentPath, directory, navigateToFolder, isLoading } =
+    useFileSystemContext();
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="h-full overflow-y-auto">

@@ -27,17 +27,21 @@ export const useFileSystemContext = () => {
  */
 export const FileSystemProvider = ({ children }) => {
   const [activeFile, setActiveFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [directory, setDirectory] = useState([]);
 
   // Fetch documents on initial render
   useEffect(() => {
     const fetchDocuments = async () => {
+      setIsLoading(true);
       try {
         const documents = await Client.listDocuments();
         console.log(documents);
         setDirectory(documents);
       } catch (err) {
         console.error("Error fetching documents:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -51,6 +55,7 @@ export const FileSystemProvider = ({ children }) => {
 
   const value = {
     directory,
+    isLoading,
     activeFile,
     handleFileSelect,
   };

@@ -3,7 +3,6 @@ import React, { useState, useRef } from "react";
 import { useMessageContext } from "@context/MessageContext";
 import MessageList from "./MessageList";
 
-import { GoogleLogin } from "@react-oauth/google";
 /**
  * ChatWindow component orchestrates the chat interface
  * It handles message display and user input coordination
