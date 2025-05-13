@@ -23,7 +23,6 @@ router = APIRouter(tags=["query"])
 # Keep your existing models
 class QueryRequest(BaseModel):
     query: str
-    index: str
     top_k: int = 3
 
 
@@ -97,7 +96,11 @@ async def create_query(request: QueryRequest):
 
         # throws mongo server error on failure. Force client to retry?
         queries_collection = await get_queries_collection()
-        await queries_collection.create_query(query_id, request.top_k, request.index, request.query)
+        await queries_collection.create_query(
+            query_id,
+            request.top_k,
+            request.query
+        )
 
         return {"query_id": query_id}
     except Exception as e:
@@ -130,13 +133,13 @@ async def stream_query_response(
         )
 
     query = query_data["query"]
-    vector_store = get_vector_store(query_data["index"])
+    vector_store = get_vector_store()
 
     try:
         logger.info(f"Executing query {query_id}: {query}")
 
         index_infos_collection = await get_index_info_collection()
-        index_info = await index_infos_collection.get_index_info(query_data["index"])
+        index_info = await index_infos_collection.get_index_info("documentrag")
 
         if index_info:
             if index_info["entity_info"]:

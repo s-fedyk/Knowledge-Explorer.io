@@ -24,7 +24,6 @@ class QueriesCollection(MongoDBBase):
     async def create_query(self,
                            query_id: str,
                            top_k: int,
-                           query_index: str,
                            query_text: str) -> Dict[str, Any]:
         now = datetime.utcnow()
         query_data = {
@@ -32,7 +31,6 @@ class QueriesCollection(MongoDBBase):
             "top_k": top_k,
             "status": "processing",
             "query": query_text,
-            "index": query_index,
             "created_at": now,
             "updated_at": now,
             "sources": None

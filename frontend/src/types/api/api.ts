@@ -14,7 +14,7 @@ export interface ListDocumentsParams {
 
 export interface QueryRequest {
   query: string;
-  similarity_top_k?: number;
+  top_k?: number;
 }
 
 export interface Source {

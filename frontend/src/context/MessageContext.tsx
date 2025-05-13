@@ -364,7 +364,7 @@ export const MessageProvider = ({ children }) => {
     return cleanText;
   };
 
-  const handleSendMessage = async (userMessage) => {
+  const handleSendMessage = async (userMessage, index) => {
     // Add user message
     addMessage("user", userMessage);
 
@@ -381,12 +381,9 @@ export const MessageProvider = ({ children }) => {
     const botMessageIndex = messages.length + 1;
     addMessage("bot", "", []);
 
-    // Track accumulated text for the full message
-    let accumulatedText = "";
-
     const queryRequest = {
       query: userMessage,
-      similarity_top_k: 8,
+      top_k: 20,
     };
 
     try {

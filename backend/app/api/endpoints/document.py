@@ -149,7 +149,7 @@ async def process_document(file_path: Path, filename: str):
 
         storage_context = StorageContext.from_defaults(
             property_graph_store=get_graph_store(),
-            vector_store=get_vector_store(doc_uuid)
+            vector_store=get_vector_store()
         )
 
         kg_extractor = GraphRAGExtractor(
@@ -197,7 +197,7 @@ async def process_document(file_path: Path, filename: str):
 
         index_info_collection = await get_index_info_collection()
         await index_info_collection.update_index_info(
-            doc_uuid,
+            "documentrag",
             entity_info,
             community_summary
         )

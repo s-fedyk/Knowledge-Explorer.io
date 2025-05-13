@@ -1,6 +1,7 @@
 // File: components/chat/ChatWindow.jsx
 import React, { useState, useRef } from "react";
 import { useMessageContext } from "@context/MessageContext";
+import { useFileSystemContext } from "@context/FileSystemContext";
 import MessageList from "./MessageList";
 
 /**
@@ -11,12 +12,15 @@ const ChatWindow = () => {
   const [inputValue, setInputValue] = useState("");
   const { messages, handleSendMessage, formatTime, isStreaming } =
     useMessageContext();
+
+  const { activeFile } = useFileSystemContext();
+
   const messagesEndRef = useRef(null);
 
   const handleSend = () => {
     if (inputValue.trim() === "") return;
     // Call the context's handleSendMessage handler
-    handleSendMessage(inputValue);
+    handleSendMessage(inputValue, activeFile.uuid);
     // Clear input
     setInputValue("");
   };

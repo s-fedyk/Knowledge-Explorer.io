@@ -8,6 +8,46 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core import Settings
 from app.config import settings
 
+RETRIEVAL_QUERY = """
+match (node: `__Entity__`)
+WITH collect(node) as nodes
+WITH nodes,
+collect {
+    UNWIND nodes as n
+    MATCH (c:Chunk)-[:MENTIONS]->(n)
+    WITH c, count(distinct n) as freq
+    RETURN c.text AS chunkText
+    ORDER BY freq DESC
+} AS text_mapping,
+collect {
+    UNWIND nodes as n
+    MATCH (n)-[:IN_COMMUNITY]->(c:__Community__)
+    WITH c, c.rank as rank, c.weight AS weight
+    RETURN c.summary 
+    ORDER BY rank, weight DESC
+} AS report_mapping,
+collect {
+    UNWIND nodes as n
+    MATCH (n)-[r]-(m) 
+    WHERE NOT m IN nodes
+    RETURN r.relationship_description AS descriptionText
+} as outsideRels,
+collect {
+    UNWIND nodes as n
+    MATCH (n)-[r]-(m) 
+    WHERE m IN nodes
+    RETURN r.relationship_description AS descriptionText
+} as insideRels,
+collect {
+    UNWIND nodes as n
+    RETURN n.entity_description AS descriptionText
+} as entities
+// We don't have covariates or claims here
+RETURN "Chunks:" + apoc.text.join(text_mapping, '|') + "\nReports: " + apoc.text.join(report_mapping,'|') +  
+       "\nRelationships: " + apoc.text.join(outsideRels + insideRels, '|') + 
+       "\nEntities: " + apoc.text.join(entities, "|") AS text, 1.0 AS score, nodes[0].id AS id, {_node_type:nodes[0]._node_type, _node_content:nodes[0]._node_content} AS metadata
+"""
+
 
 @lru_cache
 def get_neo4j_driver():
@@ -37,7 +77,7 @@ def get_graph_store() -> GraphRAGStore:
 
 
 @lru_cache
-def get_vector_store(index_name: str):
+def get_vector_store():
     """Get or create a Neo4j vector store."""
     driver = get_neo4j_driver()
 
@@ -48,7 +88,7 @@ def get_vector_store(index_name: str):
         url=settings.neo4j_uri,
         driver=driver,
         database=settings.neo4j_database,
-        index_name=index_name,
+        index_name="community",
         node_label="Document",
         text_node_property="text",
         embedding_node_property="embedding",

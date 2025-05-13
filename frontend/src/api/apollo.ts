@@ -1,3 +1,4 @@
+import { useMemo, useRef, useEffect } from "react";
 import {
   gql,
   useQuery,
@@ -82,14 +83,37 @@ interface UseNodesWithRelationsResult {
 export const useNodesWithRelations = (
   ids: string[],
 ): UseNodesWithRelationsResult => {
+  const previousIdsRef = useRef<string[]>([]);
+
+  const stableIds = useMemo(() => [...ids].sort(), [ids]);
+
+  const shouldSkip = stableIds.length === 0;
+
+  const hasIdsChanged = previousIdsRef.current != stableIds;
+
+  const fetchPolicy = hasIdsChanged ? "network-only" : "cache-first";
+
+  useEffect(() => {
+    if (hasIdsChanged) {
+      previousIdsRef.current = stableIds;
+    }
+  }, [stableIds, hasIdsChanged]);
+
   const { loading, error, data, refetch } = useQuery<
     NodesWithRelationsResponse,
     NodesWithRelationsVariables
   >(NODES_WITH_RELATIONS_QUERY, {
-    variables: { ids },
-    fetchPolicy: "network-only",
+    variables: { ids: stableIds },
+    fetchPolicy,
+    skip: shouldSkip,
+    notifyOnNetworkStatusChange: true,
   });
-  console.log("DATA:", data);
+
+  useEffect(() => {
+    if (data) {
+      console.log("DATA:", data);
+    }
+  }, [data]);
 
   return {
     loading,

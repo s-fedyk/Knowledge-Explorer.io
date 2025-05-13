@@ -33,6 +33,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             query_str,
             self.similarity_top_k
         )
+        logger.info("best entities: %s", entities)
 
         response_gen = self.aresponse_generator(query_str, entities)
 
@@ -47,6 +48,8 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             query_str,
             self.similarity_top_k
         )
+
+        logger.info("best entities: %s", entities)
 
         community_ids = self.retrieve_entity_communities(
             self.graph_store.entity_info,
@@ -155,6 +158,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         retriever = self.index.as_retriever(similarity_top_k=similarity_top_k)
         # Use the async retrieve method
         nodes_retrieved = await retriever.aretrieve(query_str)
+        logger.info("%s", nodes_retrieved)
 
         entities = set()
         pattern = (
