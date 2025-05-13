@@ -24,7 +24,7 @@ router = APIRouter(tags=["query"])
 class QueryRequest(BaseModel):
     query: str
     index: str
-    similarity_top_k: int = 3
+    top_k: int = 3
 
 
 class QueryResponse(BaseModel):
@@ -97,7 +97,7 @@ async def create_query(request: QueryRequest):
 
         # throws mongo server error on failure. Force client to retry?
         queries_collection = await get_queries_collection()
-        await queries_collection.create_query(query_id, request.index, request.query)
+        await queries_collection.create_query(query_id, request.top_k, request.index, request.query)
 
         return {"query_id": query_id}
     except Exception as e:
@@ -154,6 +154,7 @@ async def stream_query_response(
         query_engine = GraphRAGQueryEngine(
             graph_store=graph_store,
             index=pg_index,
+            similarity_top_k=query_data["top_k"]
         )
 
         streaming_response = await query_engine.acustom_query(query)

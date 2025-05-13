@@ -41,6 +41,7 @@ def get_vector_store(index_name: str):
     """Get or create a Neo4j vector store."""
     driver = get_neo4j_driver()
 
+    # Create Neo4j vector store
     vector_store = Neo4jVectorStore(
         username=settings.neo4j_username,
         password=settings.neo4j_password,
