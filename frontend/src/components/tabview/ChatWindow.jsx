@@ -13,8 +13,6 @@ const ChatWindow = () => {
   const { queryMode, messages, handleSendMessage, formatTime, isStreaming } =
     useMessageContext();
 
-  const { activeFile } = useFileSystemContext();
-
   const messagesEndRef = useRef(null);
 
   const handleSend = () => {
@@ -50,7 +48,7 @@ const ChatWindow = () => {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask a question about your documents..."
+            placeholder="Ask a question about the knowledge base..."
             className="flex-grow rounded text-gray-900 shadow-md p-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition duration-150 ease-in-out bg-white"
             disabled={isStreaming}
           />
