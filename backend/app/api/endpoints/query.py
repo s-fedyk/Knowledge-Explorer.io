@@ -12,7 +12,7 @@ from app.rag.GraphRAGLocalQueryEngine import GraphRAGLocalQueryEngine
 from llama_index.core.indices.property_graph import PropertyGraphIndex
 from llama_index.core import VectorStoreIndex
 from llama_index.core import StorageContext
-from app.dependencies import get_vector_store, get_graph_store, get_local_retriever
+from app.dependencies import get_vector_store, get_graph_store, get_engine
 from app.logger import logger
 
 from app.client.mongo_client import get_index_info_collection, get_queries_collection
@@ -28,6 +28,7 @@ router = APIRouter(tags=["query"])
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 3
+    mode: str = "local"
 
 
 class QueryResponse(BaseModel):
@@ -103,6 +104,7 @@ async def create_query(request: QueryRequest):
         await queries_collection.create_query(
             query_id,
             request.top_k,
+            request.mode,
             request.query
         )
 
@@ -150,32 +152,7 @@ async def stream_query_response(
                 graph_store.entity_info = index_info["entity_info"]
                 graph_store.community_summary = index_info["community_info"]
 
-        storage_ctx = StorageContext.from_defaults(
-            property_graph_store=graph_store,
-            vector_store=vector_store,
-        )
-        pg_index = PropertyGraphIndex.from_existing(
-            property_graph_store=graph_store,
-            storage_context=storage_ctx,
-        )
-
-        local_index = VectorStoreIndex.from_vector_store(
-            get_local_retriever()
-        )
-        local_query_engine = GraphRAGLocalQueryEngine(
-            index=local_index,
-            similarity_top_k=query_data["top_k"]
-        )
-
-        local_response = local_query_engine.custom_query(query)
-        logger.info("LOCAL RESPONSE", local_response)
-
-        query_engine = GraphRAGQueryEngine(
-            graph_store=graph_store,
-            index=pg_index,
-            similarity_top_k=query_data["top_k"]
-        )
-
+        query_engine = get_engine(query_data["mode"], query_data["top_k"])
         streaming_response = await query_engine.acustom_query(query)
 
         # Store the sources in the query data

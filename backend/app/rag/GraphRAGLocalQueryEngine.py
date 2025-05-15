@@ -77,4 +77,8 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
             query_str
         )
 
-        return StreamingResponse(response_gen=generator)
+        async def gen(response) -> AsyncGenerator:
+            for r in response:
+                yield r
+
+        return StreamingResponse(response_gen=gen(generator))

@@ -1,6 +1,11 @@
 from functools import lru_cache
+from llama_index.core import VectorStoreIndex
 from neo4j import GraphDatabase
 from app.rag.GraphRagStore import GraphRAGStore
+from app.rag.GraphRAGLocalQueryEngine import GraphRAGLocalQueryEngine
+from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
+from llama_index.core.indices.property_graph import PropertyGraphIndex
+from llama_index.core import StorageContext
 from llama_index.vector_stores.neo4jvector import Neo4jVectorStore
 from llama_index.llms.openai import OpenAI
 from llama_index.core.node_parser import SentenceSplitter
@@ -142,7 +147,7 @@ RETURN "Chunks:" + apoc.text.join(text_mapping, '|') +
 
 
 @lru_cache
-def get_local_retriever():
+def get_local_engine(top_k: int):
     driver = get_neo4j_driver()
 
     # Create Neo4j vector store
@@ -161,7 +166,60 @@ def get_local_retriever():
         embedding_dimension=1536,
     )
 
-    return vector_store
+    local_index = VectorStoreIndex.from_vector_store(
+        vector_store
+    )
+
+    local_query_engine = GraphRAGLocalQueryEngine(
+        index=local_index,
+        similarity_top_k=top_k
+    )
+
+    return local_query_engine
+
+
+def get_global_engine(top_k: int):
+    driver = get_neo4j_driver()
+    vector_store = Neo4jVectorStore(
+        username=settings.neo4j_username,
+        password=settings.neo4j_password,
+        url=settings.neo4j_uri,
+        driver=driver,
+        database=settings.neo4j_database,
+        index_name="community",
+        text_node_property="text",
+        embedding_node_property="embedding",
+        metadata_node_property="metadata",
+        embedding_dimension=1536
+    )
+    graph_store = get_graph_store()
+
+    storage_ctx = StorageContext.from_defaults(
+        property_graph_store=graph_store,
+        vector_store=vector_store,
+    )
+    pg_index = PropertyGraphIndex.from_existing(
+        property_graph_store=graph_store,
+        storage_context=storage_ctx,
+    )
+
+    query_engine = GraphRAGQueryEngine(
+        graph_store=graph_store,
+        index=pg_index,
+        similarity_top_k=top_k
+    )
+
+    return query_engine
+
+
+def get_engine(mode: str, top_k: int):
+
+    mode_to_engine = {
+        "local": get_local_engine(top_k),
+        "global": get_global_engine(top_k)
+    }
+
+    return mode_to_engine[mode]
 
 
 def init_settings():
