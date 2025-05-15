@@ -139,35 +139,17 @@ async def stream_query_response(
         )
 
     query = query_data["query"]
-    vector_store = get_vector_store()
 
     try:
         logger.info(f"Executing query {query_id}: {query}")
 
-        index_infos_collection = await get_index_info_collection()
-        index_info = await index_infos_collection.get_index_info("documentrag")
-
-        if index_info:
-            if index_info["entity_info"]:
-                graph_store.entity_info = index_info["entity_info"]
-                graph_store.community_summary = index_info["community_info"]
-
         query_engine = get_engine(query_data["mode"], query_data["top_k"])
         streaming_response = await query_engine.acustom_query(query)
-
-        # Store the sources in the query data
-        formatted_sources = []
 
         await queries_collection.store_query_sources(
             query_id,
             streaming_response.source_nodes,
         )
-
-        def cleanup_query():
-            try:
-                query_data["status"] = "completed"
-            except Exception as e:
-                logger.exception(f"Error cleaning up query {query_id}")
 
         return StreamingResponse(
             content=data_streamer(streaming_response.response_gen),

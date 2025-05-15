@@ -158,7 +158,6 @@ async def process_document(file_path: Path, filename: str):
             parse_fn=parse_fn,
         )
 
-        logger.info("nodes we are builidng an index on=%s", nodes)
         index = await run_in_threadpool(
             PropertyGraphIndex,
             nodes=nodes,
@@ -174,11 +173,6 @@ async def process_document(file_path: Path, filename: str):
         # Rebuild communities and update the shared db store.
         index.property_graph_store.build_communities()
 
-        community_summary = index.property_graph_store.community_summary
-        entity_info = index.property_graph_store.entity_info
-
-        # index is built by this point, we can upload the document
-        # to retrieve
         s3_client = get_s3_client()
         s3_client.upload_files_to_directory(pages, doc_uuid)
 
