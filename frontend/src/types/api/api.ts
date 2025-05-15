@@ -15,6 +15,7 @@ export interface ListDocumentsParams {
 export interface QueryRequest {
   query: string;
   top_k?: number;
+  mode: string;
 }
 
 export interface Source {
@@ -29,7 +30,7 @@ export interface QueryResponse {
 
 export interface SourcesResponse {
   sessionID: string;
-  sources: string[];
+  sources: int[];
 }
 
 export interface UploadDocumentRequest {

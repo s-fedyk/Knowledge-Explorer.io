@@ -8,6 +8,7 @@ import { ApolloProvider } from "@apollo/client";
 import { TabProvider } from "@context/TabContext";
 import { MessageProvider } from "@context/MessageContext";
 import { FileSystemProvider } from "@context/FileSystemContext";
+import { QueryModeProvider } from "@context/QueryModeContext";
 import NavSidebar from "./components/sidebar/NavSidebar";
 import TabView from "./components/tabview/TabView";
 
@@ -19,8 +20,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 
 function App() {
   return (
-    <GoogleOAuthProvider clientId={OAUTH_CLIENT_ID}>
-      <ApolloProvider client={client}>
+    <ApolloProvider client={client}>
+      <QueryModeProvider>
         <TabProvider>
           <FileSystemProvider>
             <MessageProvider>
@@ -36,8 +37,8 @@ function App() {
             </MessageProvider>
           </FileSystemProvider>
         </TabProvider>
-      </ApolloProvider>
-    </GoogleOAuthProvider>
+      </QueryModeProvider>
+    </ApolloProvider>
   );
 }
 

@@ -50,7 +50,7 @@ export interface NodesWithRelationsVariables {
 
 // Define the GraphQL query
 export const NODES_WITH_RELATIONS_QUERY = gql`
-  query NodesWithRelations($ids: [ID!]!) {
+  query NodesWithRelations($ids: [Int!]!) {
     nodesWithRelations(ids: $ids) {
       nodes {
         id

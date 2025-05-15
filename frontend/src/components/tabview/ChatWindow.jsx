@@ -10,7 +10,7 @@ import MessageList from "./MessageList";
  */
 const ChatWindow = () => {
   const [inputValue, setInputValue] = useState("");
-  const { messages, handleSendMessage, formatTime, isStreaming } =
+  const { queryMode, messages, handleSendMessage, formatTime, isStreaming } =
     useMessageContext();
 
   const { activeFile } = useFileSystemContext();
@@ -20,7 +20,7 @@ const ChatWindow = () => {
   const handleSend = () => {
     if (inputValue.trim() === "") return;
     // Call the context's handleSendMessage handler
-    handleSendMessage(inputValue, activeFile.uuid);
+    handleSendMessage(inputValue, queryMode);
     // Clear input
     setInputValue("");
   };

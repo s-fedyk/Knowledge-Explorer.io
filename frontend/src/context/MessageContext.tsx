@@ -37,6 +37,7 @@ export const useMessageContext = () => {
  */
 export const MessageProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
+  const [queryMode, setQueryMode] = useState("global");
   const { addGraphTab } = useTabContext();
   const cancelStreamRef = useRef(null);
 
@@ -364,7 +365,7 @@ export const MessageProvider = ({ children }) => {
     return cleanText;
   };
 
-  const handleSendMessage = async (userMessage, index) => {
+  const handleSendMessage = async (userMessage, mode) => {
     // Add user message
     addMessage("user", userMessage);
 
@@ -384,6 +385,7 @@ export const MessageProvider = ({ children }) => {
     const queryRequest = {
       query: userMessage,
       top_k: 20,
+      mode: mode,
     };
 
     try {
@@ -399,8 +401,6 @@ export const MessageProvider = ({ children }) => {
         // Token callback
         (token) => {
           // Process the token and get clean text
-          accumulatedText = processTokenStream(token, botMessageIndex);
-
           // Update the main message text updateMessage(botMessageIndex, accumulatedText, null);
         },
         // Completion callback
@@ -498,6 +498,8 @@ export const MessageProvider = ({ children }) => {
   const value = {
     messages,
     addMessage,
+    queryMode,
+    setQueryMode,
     handleSendMessage,
     formatTime,
     cancelCurrentStream,

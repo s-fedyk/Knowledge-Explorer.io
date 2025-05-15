@@ -22,7 +22,7 @@ export const SummaryBlock = ({ content, complete }) => {
             d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           ></path>
         </svg>
-        <span className="font-medium text-amber-700">Source Summary</span>
+        <span className="font-medium text-amber-700">Community Summary</span>
         {!complete && (
           <span className="ml-2 text-amber-500">
             <span className="animate-pulse">•</span>
