@@ -129,7 +129,7 @@ collect {
     UNWIND nodes as n
     RETURN n.entity_description AS descriptionText
 } as entities
-RETURN "Chunks:" + apoc.text.join(text_mapping, '|') +
+RETURN ID(nodes[0]) + "[SPLIT] Chunks:" + apoc.text.join(text_mapping, '|') +
        "\nRelationships: " + apoc.text.join(outsideRels + insideRels, '|') + 
        "\nEntities: " + apoc.text.join(entities, "|") AS text, 
        1.0 as score,
@@ -171,10 +171,9 @@ def get_local_engine(top_k: int):
 
 
 RET_QUERY_COMMUNITY = (
-    f"RETURN node.summary AS text, score, "
-    "node.id AS id, "
+    f"RETURN  + id(node) + \"[SPLIT]\" + node.text AS text, score, id(node) as id, "
     f"node {{.*, text: Null, "
-    f"embedding: Null, id: Null }} AS metadata"
+    f"embedding: Null, id: node.id }} AS metadata"
 )
 
 

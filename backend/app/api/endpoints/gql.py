@@ -2,6 +2,7 @@ from typing import List, Dict, Optional
 import strawberry
 from strawberry.fastapi import GraphQLRouter
 from app.dependencies import get_neo4j_driver
+from app.logger import logger
 driver = get_neo4j_driver()
 
 
@@ -55,11 +56,13 @@ def _fetch_nodes_by_ids(tx, ids: List[str]) -> List[Dict]:
     ]
 
 
-def _fetch_related_nodes(tx, ids: List[str]):
+def _fetch_related_nodes(tx, ids: List[int]):
     result = tx.run(
         """
-        MATCH (n:`__Node__`)
-        WHERE n.id IN $ids
+        MATCH (n)
+        WHERE id(n) IN $ids AND (
+        n:__Community__ OR n:__Entity__ OR n:Chunk
+        )
 
         // Find direct relationships and collect all nodes involved
         OPTIONAL MATCH (n)-[r1]-(m)
@@ -132,17 +135,20 @@ class Query:
         return records
 
     @strawberry.field
-    def nodes_with_relations(self, ids: List[strawberry.ID]) -> NodeAndRelationship:
+    def nodes_with_relations(self, ids: List[int]) -> NodeAndRelationship:
         result_nodes = []
         result_rels = []
+
+        typed_ids = [int(id) for id in ids]
 
         with driver.session() as session:
             nodes, rels = session.execute_read(
                 _fetch_related_nodes,
-                ids
+                typed_ids
             )
 
             for rec in nodes:
+                logger.info(rec)
                 result_nodes.append(
                     Node(
                         id=rec["id"],

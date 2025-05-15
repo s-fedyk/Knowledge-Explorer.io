@@ -47,7 +47,7 @@ CALL {
   WITH e, index
   WHERE index = 0
   MERGE (c:`__Community__` {id: toString(index) + '-' + toString(e.communities[index])})
-  ON CREATE SET c.level = index
+  ON CREATE SET c.level = index, c.text=""
   MERGE (e)-[:IN_COMMUNITY]->(c)
   RETURN count(*) AS count_0
 }
@@ -56,9 +56,9 @@ CALL {
   WITH e, index
   WHERE index > 0
   MERGE (current:`__Community__` {id: toString(index) + '-' + toString(e.communities[index])})
-  ON CREATE SET current.level = index
+  ON CREATE SET current.level = index, current.text=""
   MERGE (previous:`__Community__` {id: toString(index - 1) + '-' + toString(e.communities[index - 1])})
-  ON CREATE SET previous.level = index - 1
+  ON CREATE SET previous.level = index - 1, previous.text=""
   MERGE (previous)-[:IN_COMMUNITY]->(current)
   RETURN count(*) AS count_1
 }
@@ -92,7 +92,7 @@ RETURN c.id AS communityId,
 SET_SUMMARY_QUERY = """
 UNWIND $data AS row
 MERGE (c:__Community__ {id:row.community})
-SET c.summary = row.summary
+SET c.text = row.text
 SET c.embedding = row.embedding
 """
 
@@ -156,7 +156,7 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
             data.append(
                 {
                     "community": community['communityId'],
-                    "summary": summary,
+                    "text": summary,
                     "embedding": embedding
                 }
             )

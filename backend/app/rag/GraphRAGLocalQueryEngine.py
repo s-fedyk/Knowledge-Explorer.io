@@ -72,8 +72,12 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         retriever = self.index.as_retriever()
         response_context = await retriever.aretrieve(query_str)
 
+        logger.info(response_context[0])
+
+        source, context = response_context[0].text.split(sep="[SPLIT]")
+
         generator = self.stream_answer_from_context(
-            response_context,
+            context,
             query_str
         )
 
@@ -81,4 +85,7 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
             for r in response:
                 yield r
 
-        return StreamingResponse(response_gen=gen(generator))
+        return StreamingResponse(
+            response_gen=gen(generator),
+            source_nodes=[int(source)]
+        )

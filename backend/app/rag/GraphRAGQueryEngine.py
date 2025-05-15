@@ -116,10 +116,15 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         nodes_retrieved = await retriever.aretrieve(query_str)
 
         summaries = []
+        sources = []
+        logger.info(nodes_retrieved)
         for node in nodes_retrieved:
-            summaries.append(node.text)
+            source, text = node.text.split(sep="[SPLIT]")
+            summaries.append(text)
+            sources.append(int(source))
 
-        return summaries, nodes_retrieved
+        logger.info(summaries, sources)
+        return summaries, sources
 
     def generate_answer_from_summary(self, community_summary, query):
         """Generate an answer from a community summary based on a given query using LLM."""
@@ -156,7 +161,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
 
     def aggregate_answers(self, community_answers):
         """Aggregate individual community answers into a final, coherent response."""
-        prompt = "Combine the following intermediate answers into a final, concise response."
+        prompt = "Logically combine the following intermediate answers into a final, coherent, concise response."
         messages = [
             ChatMessage(role="system", content=prompt),
             ChatMessage(
@@ -175,7 +180,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         Aggregate individual community answers and return a generator that streams the response.
         This method returns a generator directly, not a coroutine.
         """
-        prompt = "Combine the following intermediate answers into a final, concise response."
+        prompt = "Logically combine the following intermediate answers into a final, coherent, concise response."
         messages = [
             ChatMessage(role="system", content=prompt),
             ChatMessage(

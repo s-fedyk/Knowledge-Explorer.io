@@ -28,7 +28,7 @@ router = APIRouter(tags=["query"])
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 3
-    mode: str = "global"
+    mode: str = "local"
 
 
 class QueryResponse(BaseModel):
@@ -157,12 +157,10 @@ async def stream_query_response(
 
         # Store the sources in the query data
         formatted_sources = []
-        for source in streaming_response.source_nodes:
-            formatted_sources.append(source.node_id)
 
         await queries_collection.store_query_sources(
             query_id,
-            formatted_sources,
+            streaming_response.source_nodes,
         )
 
         def cleanup_query():
