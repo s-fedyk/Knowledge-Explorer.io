@@ -189,14 +189,6 @@ async def process_document(file_path: Path, filename: str):
             mimetype=mimetype,
             pages=len(pages)
         )
-
-        index_info_collection = await get_index_info_collection()
-        await index_info_collection.update_index_info(
-            "documentrag",
-            entity_info,
-            community_summary
-        )
-
         logger.info("Property Graph Index created for %s", filename)
     except Exception as e:
         logger.exception("Error processing document: %s", filename)
