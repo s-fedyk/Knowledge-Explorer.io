@@ -400,8 +400,7 @@ export const MessageProvider = ({ children }) => {
         queryRequest,
         // Token callback
         (token) => {
-          // Process the token and get clean text
-          // Update the main message text updateMessage(botMessageIndex, accumulatedText, null);
+          processTokenStream(token, botMessageIndex);
         },
         // Completion callback
         async (sessionId) => {
