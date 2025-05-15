@@ -260,6 +260,19 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
     def build_communities(self):
         """Builds communities from the graph and summarizes them."""
 
+        content = node_to_metadata_dict(
+            TextNode(),
+            remove_text=False,
+            flat_metadata=False
+        )
+
+        self.structured_query(
+            METADATA_QUERY,
+            {
+                "content": content
+            }
+        )
+
         # self.rebuild_communities()
         nx_graph = self._create_nx_graph()
         community_hierarchical_clusters = hierarchical_leiden(

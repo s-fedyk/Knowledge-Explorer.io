@@ -3,12 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 import uuid
 import asyncio
+
+from llama_index.core.retrievers import VectorContextRetriever, PGRetriever
 from pydantic import BaseModel
 from llama_index.core import StorageContext
 from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
+from app.rag.GraphRAGLocalQueryEngine import GraphRAGLocalQueryEngine
 from llama_index.core.indices.property_graph import PropertyGraphIndex
+from llama_index.core import VectorStoreIndex
 from llama_index.core import StorageContext
-from app.dependencies import get_vector_store, get_graph_store
+from app.dependencies import get_vector_store, get_graph_store, get_local_retriever
 from app.logger import logger
 
 from app.client.mongo_client import get_index_info_collection, get_queries_collection
@@ -154,6 +158,18 @@ async def stream_query_response(
             property_graph_store=graph_store,
             storage_context=storage_ctx,
         )
+
+        local_index = VectorStoreIndex.from_vector_store(
+            get_local_retriever()
+        )
+        local_query_engine = GraphRAGLocalQueryEngine(
+            index=local_index,
+            similarity_top_k=query_data["top_k"]
+        )
+
+        local_response = local_query_engine.custom_query(query)
+        logger.info("LOCAL RESPONSE", local_response)
+
         query_engine = GraphRAGQueryEngine(
             graph_store=graph_store,
             index=pg_index,

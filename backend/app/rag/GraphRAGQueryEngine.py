@@ -34,6 +34,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             self.similarity_top_k
         )
         logger.info("best entities: %s", entities)
+        logger.info("source nodes: %s", source_nodes)
 
         response_gen = self.aresponse_generator(query_str, entities)
 

@@ -89,11 +89,76 @@ def get_vector_store():
         driver=driver,
         database=settings.neo4j_database,
         index_name="community",
-        node_label="Document",
         text_node_property="text",
         embedding_node_property="embedding",
         metadata_node_property="metadata",
         embedding_dimension=1536
+    )
+
+    return vector_store
+
+
+RET_QUERY = (
+
+    f"RETURN node.name AS text, score, "
+    "node.id AS id, "
+    f"node {{.*, text: Null, "
+    f"embedding: Null, id: Null }} AS metadata"
+)
+
+RET_QUERY = """
+WITH collect(node) as nodes
+WITH nodes,
+collect {
+    UNWIND nodes as n
+    MATCH (c:Chunk)-[:MENTIONS]->(n)
+    WITH c, count(distinct n) as freq
+    RETURN c.text AS chunkText
+    ORDER BY freq DESC
+} AS text_mapping,
+collect {
+    UNWIND nodes as n
+    MATCH (n)-[r]-(m) 
+    WHERE NOT m IN nodes
+    RETURN r.relationship_description AS descriptionText
+} as outsideRels,
+collect {
+    UNWIND nodes as n
+    MATCH (n)-[r]-(m) 
+    WHERE m IN nodes
+    RETURN r.relationship_description AS descriptionText
+} as insideRels,
+collect {
+    UNWIND nodes as n
+    RETURN n.entity_description AS descriptionText
+} as entities
+RETURN "Chunks:" + apoc.text.join(text_mapping, '|') +
+       "\nRelationships: " + apoc.text.join(outsideRels + insideRels, '|') + 
+       "\nEntities: " + apoc.text.join(entities, "|") AS text, 
+       1.0 as score,
+       nodes[0].id as id,
+       {_node_type:nodes[0]._node_type, _node_content:nodes[0]._node_content} AS metadata
+"""
+
+
+@lru_cache
+def get_local_retriever():
+    driver = get_neo4j_driver()
+
+    # Create Neo4j vector store
+    vector_store = Neo4jVectorStore(
+        username=settings.neo4j_username,
+        password=settings.neo4j_password,
+        url=settings.neo4j_uri,
+        driver=driver,
+        database=settings.neo4j_database,
+        index_name="entity",
+        node_label="__Entity__",
+        text_node_property="text",
+        embedding_node_property="embedding",
+        metadata_node_property="metadata",
+        retrieval_query=RET_QUERY,
+        embedding_dimension=1536,
     )
 
     return vector_store

@@ -158,6 +158,7 @@ async def process_document(file_path: Path, filename: str):
             parse_fn=parse_fn,
         )
 
+        logger.info("nodes we are builidng an index on=%s", nodes)
         index = await run_in_threadpool(
             PropertyGraphIndex,
             nodes=nodes,
