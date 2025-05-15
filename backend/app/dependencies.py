@@ -103,14 +103,6 @@ def get_vector_store():
     return vector_store
 
 
-RET_QUERY = (
-
-    f"RETURN node.name AS text, score, "
-    "node.id AS id, "
-    f"node {{.*, text: Null, "
-    f"embedding: Null, id: Null }} AS metadata"
-)
-
 RET_QUERY = """
 WITH collect(node) as nodes
 WITH nodes,
@@ -178,6 +170,14 @@ def get_local_engine(top_k: int):
     return local_query_engine
 
 
+RET_QUERY_COMMUNITY = (
+    f"RETURN node.summary AS text, score, "
+    "node.id AS id, "
+    f"node {{.*, text: Null, "
+    f"embedding: Null, id: Null }} AS metadata"
+)
+
+
 def get_global_engine(top_k: int):
     driver = get_neo4j_driver()
     vector_store = Neo4jVectorStore(
@@ -186,26 +186,22 @@ def get_global_engine(top_k: int):
         url=settings.neo4j_uri,
         driver=driver,
         database=settings.neo4j_database,
-        index_name="community",
+        node_label="__Community__",
         text_node_property="text",
         embedding_node_property="embedding",
         metadata_node_property="metadata",
+        retrieval_query=RET_QUERY_COMMUNITY,
         embedding_dimension=1536
     )
     graph_store = get_graph_store()
 
-    storage_ctx = StorageContext.from_defaults(
-        property_graph_store=graph_store,
-        vector_store=vector_store,
-    )
-    pg_index = PropertyGraphIndex.from_existing(
-        property_graph_store=graph_store,
-        storage_context=storage_ctx,
+    index = VectorStoreIndex.from_vector_store(
+        vector_store=vector_store
     )
 
     query_engine = GraphRAGQueryEngine(
         graph_store=graph_store,
-        index=pg_index,
+        index=index,
         similarity_top_k=top_k
     )
 

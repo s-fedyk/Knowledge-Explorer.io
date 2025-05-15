@@ -1,7 +1,7 @@
 from llama_index.core.base.response.schema import StreamingResponse
 from llama_index.core.query_engine import CustomQueryEngine
 from llama_index.core.llms import LLM, ChatResponse
-from llama_index.core import PropertyGraphIndex
+from llama_index.core import VectorStoreIndex
 from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
 from typing import Generator, AsyncGenerator
@@ -16,7 +16,7 @@ import re
 
 class GraphRAGQueryEngine(CustomQueryEngine):
     graph_store: GraphRAGStore
-    index: PropertyGraphIndex
+    index: VectorStoreIndex
     _llm: LLM = PrivateAttr(default_factory=lambda: Settings.llm)
     similarity_top_k: int = 20
 
@@ -29,55 +29,34 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         return StreamingResponse(response_gen=response_gen)
 
     async def acustom_query(self, query_str: str) -> StreamingResponse:
-        entities, source_nodes = await self.aget_entities(
-            query_str,
-            self.similarity_top_k
-        )
-        logger.info("best entities: %s", entities)
-        logger.info("source nodes: %s", source_nodes)
-
-        response_gen = self.aresponse_generator(query_str, entities)
+        summaries, source_nodes = await self.aget_summaries(query_str)
+        response_gen = self.aresponse_generator(query_str, summaries)
 
         return StreamingResponse(
             response_gen=response_gen,
             source_nodes=source_nodes
         )
 
-    def response_generator(self, query_str: str) -> Generator:
+    def response_generator(self, query_str: str, community_summaries) -> Generator:
         logger.info("Synchronous Reponse generator!")
-        entities, source_nodes = self.get_entities(
-            query_str,
-            self.similarity_top_k
-        )
-
-        logger.info("best entities: %s", entities)
-
-        community_ids = self.retrieve_entity_communities(
-            self.graph_store.entity_info,
-            entities
-        )
-
-        community_summaries = self.graph_store.get_community_summaries()
-
         logger.info("Summaries: {%s}", community_summaries)
         community_answers = []
 
-        for id, community_summary in community_summaries.items():
-            if id in community_ids:
-                community_answers.append("")
-                summary_generator = self.stream_answer_from_summary(
-                    community_summary,
-                    query_str
-                )
+        for community_summary in community_summaries:
+            community_answers.append("")
+            summary_generator = self.stream_answer_from_summary(
+                community_summary,
+                query_str
+            )
 
-                yield ChatResponse(message=ChatMessage(), delta="[SUMSTART]")
-                for tok in summary_generator:
-                    logger.info("summary token %s", tok)
-                    yield tok
-                    community_summary[-1] += tok
-                yield ChatResponse(message=ChatMessage(), delta="[SUMEND]")
+            yield ChatResponse(message=ChatMessage(), delta="[SUMSTART]")
+            for tok in summary_generator:
+                logger.info("summary token %s", tok)
+                yield tok
+                community_summary[-1] += tok
+            yield ChatResponse(message=ChatMessage(), delta="[SUMEND]")
 
-                community_summary = community_summary
+            community_summary = community_summary
 
         logger.info("Community answers: {%s}", community_answers)
         response_gen = self.aggregate_answers_stream(community_answers)
@@ -87,116 +66,60 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             yield tok
         yield ChatResponse(message=ChatMessage(), delta="[FINALEND]")
 
-    async def aresponse_generator(self, query_str: str, entities) -> AsyncGenerator:
-        logger.info("Asynchronous Reponse generator!")
-        logger.info("(generator) Retrieved entities: %s", entities)
-
-        logger.info(
-            "Graph store entity info: {%s}",
-            self.graph_store.entity_info
-        )
-
-        community_ids = self.retrieve_entity_communities(
-            self.graph_store.entity_info,
-            entities
-        )
-
-        community_summaries = self.graph_store.get_community_summaries()
-
-        logger.info("Summaries: {%s}", community_summaries)
+    async def aresponse_generator(self, query_str: str, community_summaries) -> AsyncGenerator:
         community_answers = []
 
-        for id, community_summary in community_summaries.items():
-            if id in community_ids:
-                summary_generator = self.stream_answer_from_summary(
-                    community_summary,
-                    query_str
-                )
+        for community_summary in community_summaries:
+            summary_generator = self.stream_answer_from_summary(
+                community_summary,
+                query_str
+            )
 
-                summary = []
+            summary = []
 
-                yield ChatResponse(message=ChatMessage(), delta="[SUMSTART]")
-                for tok in summary_generator:
-                    yield tok
-                    summary.append(tok.delta)
-                yield ChatResponse(message=ChatMessage(), delta="[SUMEND]")
+            yield ChatResponse(message=ChatMessage(), delta="[SUMSTART]")
+            for tok in summary_generator:
+                yield tok
+                summary.append(tok.delta)
+            yield ChatResponse(message=ChatMessage(), delta="[SUMEND]")
 
-                # yield ChatResponse(message=ChatMessage(), delta="\n")
-                summary = ' '.join(summary)
-                community_answers.append(summary)
+            # yield ChatResponse(message=ChatMessage(), delta="\n")
+            summary = ' '.join(summary)
+            community_answers.append(summary)
 
         logger.info("Community answers: {%s}", community_answers)
         response_gen = self.aggregate_answers_stream(community_answers)
         for tok in response_gen:
             yield tok
 
-    def get_entities(self, query_str, similarity_top_k):
-        nodes_retrieved = self.index.as_retriever(
-            similarity_top_k=similarity_top_k
-        ).aretrieve(query_str)
-
-        entities = set()
-        pattern = (
-            r"^(\w+(?:\s+\w+)*)\s*->\s*([a-zA-Z\s]+?)\s*->\s*(\w+(?:\s+\w+)*)$"
-        )
-
-        for node in nodes_retrieved:
-            matches = re.findall(
-                pattern, node.text, re.MULTILINE | re.IGNORECASE
-            )
-
-            for match in matches:
-                subject = match[0]
-                obj = match[2]
-                entities.add(subject)
-                entities.add(obj)
-
-        return list(entities), nodes_retrieved
-
-    async def aget_entities(self, query_str, similarity_top_k):
-        """Async version of get_entities"""
+    def get_summaries(self, query_str):
         # Use the async version of the retriever
-        retriever = self.index.as_retriever(similarity_top_k=similarity_top_k)
+        retriever = self.index.as_retriever(
+            similarity_top_k=self.similarity_top_k
+        )
+        # Use the async retrieve method
+        nodes_retrieved = retriever.retrieve(query_str)
+
+        summaries = []
+        for node in nodes_retrieved:
+            summaries.append(node.text)
+
+        return summaries, nodes_retrieved
+
+    async def aget_summaries(self, query_str):
+        """Async version of get_summaries"""
+        # Use the async version of the retriever
+        retriever = self.index.as_retriever(
+            similarity_top_k=self.similarity_top_k
+        )
         # Use the async retrieve method
         nodes_retrieved = await retriever.aretrieve(query_str)
-        logger.info("%s", nodes_retrieved)
 
-        entities = set()
-        pattern = (
-            r"^(\w+(?:\s+\w+)*)\s*->\s*([a-zA-Z\s]+?)\s*->\s*(\w+(?:\s+\w+)*)$"
-        )
-
+        summaries = []
         for node in nodes_retrieved:
-            matches = re.findall(
-                pattern, node.text, re.MULTILINE | re.IGNORECASE
-            )
+            summaries.append(node.text)
 
-            for match in matches:
-                subject = match[0]
-                obj = match[2]
-                entities.add(subject)
-                entities.add(obj)
-
-        return list(entities), nodes_retrieved
-
-    def retrieve_entity_communities(self, entity_info, entities):
-        """
-        Retrieve cluster information for given entities, allowing for multiple clusters per entity.
-
-        Args:
-        entity_info (dict): Dictionary mapping entities to their cluster IDs (list).
-        entities (list): List of entity names to retrieve information for.
-
-        Returns:
-        List of community or cluster IDs to which an entity belongs.
-        """
-        community_ids = []
-
-        for entity in entities:
-            if entity in entity_info:
-                community_ids.extend(entity_info[entity])
-
-        return list(set(community_ids))
+        return summaries, nodes_retrieved
 
     def generate_answer_from_summary(self, community_summary, query):
         """Generate an answer from a community summary based on a given query using LLM."""

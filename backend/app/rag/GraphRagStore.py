@@ -2,6 +2,7 @@ from llama_index.graph_stores.neo4j import Neo4jPropertyGraphStore
 from llama_index.core.llms import ChatMessage
 import re
 import networkx as nx
+from llama_index.core import Settings
 from graspologic.partition import hierarchical_leiden
 from collections import defaultdict
 from llama_index.llms.openai import OpenAI
@@ -31,7 +32,7 @@ CALL gds.louvain.write(
 """
 
 FINISH_EXTRACTION = "CALL gds.graph.drop('louvrainGraph')"
-PURGE_COMMUNITIES = "MATCH(n: Community) DETACH DELETE n"
+PURGE_COMMUNITIES = "MATCH(n: __Community__) DETACH DELETE n"
 
 SET_NODE_LEVEL = """
     MATCH (n)
@@ -64,39 +65,6 @@ CALL {
 RETURN count(*)
 """
 
-CONNECT_COMMUNITY = """
-    MATCH (n)
-    WHERE n.communityIDs IS NOT NULL AND n.level = $last_level
-    MATCH (c:`__Community__` {id: n.communityIDs[0], level: $level})
-    CREATE (n)-[:IN_COMMUNITY]->(c)
-"""
-
-GET_COMMUNITIES = """
-        MATCH (c:Community {level: $level})
-        RETURN c.id as id, c.name AS name
-"""
-
-GET_COMMUNITY_ENTITY_DESCRIPTIONS = """
-    MATCH (c:Community {id: $community_id, level: $level})
-    MATCH (entity:`__Entity__`)-[:IN_COMMUNITY]->(c)
-    RETURN entity.name as name, entity.entity_description as description
-"""
-
-GET_COMMUNITY_RELATIONSHIP_DESCRIPTIONS = """
-    MATCH (c:Community {id: $community_id, level: $level})
-    MATCH (source:`__Entity__`)-[:IN_COMMUNITY]->(c)
-    MATCH (target:`__Entity__`)-[:IN_COMMUNITY]->(c)
-    MATCH (source)-[r]->(target)
-    RETURN source.name AS source_name,
-           target.name AS target_name,
-           r.relationship_description AS description
-"""
-
-SET_COMMUNITY_SUMMARY = """
-    MATCH (n:`__Community__` {id: $community_id, level: $level})
-    SET n.entity_description=$summary
-"""
-
 RANK_COMMUNITIES = """
 MATCH (c:__Community__)<-[:IN_COMMUNITY*]-(:__Entity__)<-[:MENTIONS]-(chunk:Chunk)
 WITH c, count(distinct chunk) AS rank
@@ -105,22 +73,18 @@ SET c.community_rank = rank;
 
 COMMUNITY_SUMMARY_PROMPT = """
 You are provided with a set of entity and relationship descriptions from a knowledge graph.
-The entities are represented as {"name": "name goes here", "description": "description goe here"}
-
-The relationships are represented as {"source": "source entity here", "target": "target entity here", "description": "description goes here"} .
-
-The goal is to capture the most critical and relevant details that highlight the nature and significance of each relationship and entity. Ensure that the summary is coherent and integrates the information in a way that emphasizes the key aspects of the information.
+The goal is to provide a concise natural language summary to capture the most critical and relevant details that highlight the nature and significance of each relationship and entity. Ensure that the summary is coherent and integrates the information in a way that emphasizes key aspects.
 """
 
 COMMUNITY_INFO_QUERY = """
 MATCH (c:`__Community__`)<-[:IN_COMMUNITY*]-(e:__Entity__)
 WITH c, collect(e ) AS nodes
-WHERE size(nodes) > 1
+WHERE size(nodes) > 1 AND c.level = $level
 CALL apoc.path.subgraphAll(nodes[0], {
  whitelistNodes:nodes
 })
 YIELD relationships
-RETURN c.id AS communityId, 
+RETURN c.id AS communityId,
        [n in nodes | {id: n.id, description: n.entity_description , type: [el in labels(n) WHERE el <> '__Entity__'][0]}] AS nodes,
        [r in relationships | {start: startNode(r).id, type: type(r), end: endNode(r).id, description: r.relationship_description}] AS rels
 """
@@ -129,6 +93,7 @@ SET_SUMMARY_QUERY = """
 UNWIND $data AS row
 MERGE (c:__Community__ {id:row.community})
 SET c.summary = row.summary
+SET c.embedding = row.embedding
 """
 
 SYSTEM_SUMMARY_PROMPT = """
@@ -137,6 +102,11 @@ Given an input triples, generate the information summary. No pre-amble.
 
 METADATA_QUERY = """
 MATCH (e:__Entity__)
+SET e += $content
+"""
+
+METADATA_QUERY_COMMUNITY = """
+MATCH (e:__Community__)
 SET e += $content
 """
 
@@ -171,31 +141,23 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
     entity_info = None
     max_cluster_size = 5
 
-    def create_community_summary(self, level: int):
-        res = self.structured_query(
-            CREATE_COMMUNITY,
-            {
-            }
-        )
-
-        res = self.structured_query(
-            RANK_COMMUNITIES, {}
-        )
-
+    def generate_summaries(self, level: int):
         communities = self.structured_query(
-            COMMUNITY_INFO_QUERY, {}
+            COMMUNITY_INFO_QUERY, {"level": level}
         )
-
         data = []
         for community in communities:
             stringify_info = prepare_string(community)
             logger.info("Stringified: %s", stringify_info)
 
             summary = self.generate_summary(stringify_info)
+            embedding = Settings.embed_model.get_query_embedding(summary)
+
             data.append(
                 {
                     "community": community['communityId'],
-                    "summary": summary
+                    "summary": summary,
+                    "embedding": embedding
                 }
             )
             logger.info("summary is %s", summary)
@@ -207,12 +169,17 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
             }
         )
 
+    def create_community_summary(self, level: int):
+        self.structured_query(CREATE_COMMUNITY, {})
+        self.structured_query(RANK_COMMUNITIES, {})
+        self.generate_summaries(0)
+
     def generate_summary(self, community_info):
         """Generate summary for a given text using an LLM."""
         messages = [
             ChatMessage(
                 role="system",
-                content=SYSTEM_SUMMARY_PROMPT,
+                content=COMMUNITY_SUMMARY_PROMPT
             ),
             ChatMessage(
                 role="user",
@@ -259,7 +226,7 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
 
     def build_communities(self):
         """Builds communities from the graph and summarizes them."""
-
+        self.rebuild_communities()
         content = node_to_metadata_dict(
             TextNode(),
             remove_text=False,
@@ -272,8 +239,13 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
                 "content": content
             }
         )
+        self.structured_query(
+            METADATA_QUERY_COMMUNITY,
+            {
+                "content": content
+            }
+        )
 
-        # self.rebuild_communities()
         nx_graph = self._create_nx_graph()
         community_hierarchical_clusters = hierarchical_leiden(
             nx_graph, max_cluster_size=self.max_cluster_size

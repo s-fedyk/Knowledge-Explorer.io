@@ -28,7 +28,7 @@ router = APIRouter(tags=["query"])
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 3
-    mode: str = "local"
+    mode: str = "global"
 
 
 class QueryResponse(BaseModel):
