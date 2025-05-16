@@ -1,4 +1,3 @@
-// File: components/chat/ChatWindow.jsx
 import React, { useState, useRef } from "react";
 import { useMessageContext } from "@context/MessageContext";
 import { useFileSystemContext } from "@context/FileSystemContext";
@@ -12,7 +11,6 @@ const ChatWindow = () => {
   const [inputValue, setInputValue] = useState("");
   const { queryMode, messages, handleSendMessage, formatTime, isStreaming } =
     useMessageContext();
-
   const messagesEndRef = useRef(null);
 
   const handleSend = () => {
@@ -29,10 +27,17 @@ const ChatWindow = () => {
       handleSend();
     }
   };
+
   return (
     <div className="flex flex-col h-full">
-      {/* Messages area with controlled overflow */}
-      <div className="flex-1 overflow-y-auto p-4 border-b border-gray-400">
+      {/* Messages area with WebKit scrollbar styling */}
+      <div
+        className="flex-1 overflow-y-auto p-4 border-b border-gray-400"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#CBD5E0 #EDF2F7",
+        }}
+      >
         <MessageList
           messages={messages}
           formatTime={formatTime}
@@ -40,6 +45,7 @@ const ChatWindow = () => {
           messagesEndRef={messagesEndRef}
         />
       </div>
+
       {/* Input area */}
       <div className="flex-none bg-white p-4">
         <div className="flex w-full">
