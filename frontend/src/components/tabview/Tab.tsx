@@ -9,7 +9,7 @@ function Tab({ tab }) {
   const textColor = active ? "text-black" : "text-gray-400";
 
   const classes = useMemo(() => {
-    return `px-6 py-4 flex items-center cursor-pointer border-r border-gray-200 ${
+    return `px-6 select-none py-4 flex items-center cursor-pointer border-r border-gray-200 ${
       activeTabId === tab.id
         ? "bg-gray-100 text-gray-400"
         : "hover:bg-gray-50 text-gray-400"

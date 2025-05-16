@@ -33,7 +33,7 @@ function QueryModeSelector() {
       {/* Content area with scrolling */}
       <div className="flex-1 overflow-y-auto p-4">
         {/* Query Type Dropdown */}
-        <div className="relative">
+        <div className="relative select-none">
           <div
             className="flex justify-between items-center p-2 border border-gray-400 cursor-pointer"
             onClick={toggleDropdown}

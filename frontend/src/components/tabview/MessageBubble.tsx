@@ -27,9 +27,6 @@ const MessageContent = ({ message }) => {
   );
 };
 
-/**
- * MessageBubble component renders a single chat message with appropriate styling
- */
 const MessageBubble = ({ message, formatTime, isLastMessage, isStreaming }) => {
   return (
     <div
