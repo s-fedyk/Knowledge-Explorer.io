@@ -39,7 +39,6 @@ const TabView = () => {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
-      {/* Tabs navigation */}
       <div className="flex flex-none bg-white border-b border-gray-400 text-lg relative">
         <div className="flex overflow-x-auto pr-12 w-full">
           {tabs.map((tab) => (
@@ -48,7 +47,7 @@ const TabView = () => {
         </div>
 
         <a
-          href="https://github.com/s-fedyk/rag_document_chat"
+          href={GIT_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center text-gray-400 px-3 cursor-pointer absolute right-0 h-full bg-white border-l border-gray-200 hover:bg-gray-100 hover:text-black transition-colors duration-200"
@@ -58,7 +57,6 @@ const TabView = () => {
         </a>
       </div>
 
-      {/* Tab content area */}
       <div className="flex-1 overflow-auto bg-gray-100">{tabsContent}</div>
     </div>
   );
