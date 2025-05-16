@@ -30,7 +30,7 @@ function App() {
                 {/* Navigation Sidebar Component */}
                 <NavSidebar />
                 {/* TabView with Chat and File tabs - no overflow-hidden here */}
-                <div className="flex-1">
+                <div className="flex-1 overflow-x-auto">
                   <TabView />
                 </div>
               </div>
