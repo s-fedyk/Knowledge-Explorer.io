@@ -41,7 +41,7 @@ const ChatWindow = () => {
         />
       </div>
       {/* Input area */}
-      <div className="flex-none bg-gray-100 p-4">
+      <div className="flex-none bg-white p-4">
         <div className="flex w-full">
           <input
             type="text"

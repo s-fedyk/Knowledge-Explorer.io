@@ -111,8 +111,8 @@ resource "aws_ecs_task_definition" "neo4j" {
   family                   = "knowledge-explorer-neo4j"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "1024"  # 1 vCPU
-  memory                   = "2048"  # 2GB
+  cpu                      = "2048"  # 1 vCPU
+  memory                   = "4096"  # 2GB
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   
   volume {
@@ -183,7 +183,7 @@ resource "aws_ecs_task_definition" "neo4j" {
         },
         {
           name  = "NEO4J_PLUGINS"
-          value = jsonencode(["apoc"])
+          value = jsonencode(["apoc", "graph-data-science"])
         }
       ]
       mountPoints = [
@@ -247,8 +247,8 @@ resource "aws_ecs_task_definition" "backend" {
   family                   = "knowledge-explorer-backend"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "512"  # 0.5 vCPU
-  memory                   = "1024" # 1GB
+  cpu                      = "2048"  # 2 vCPU
+  memory                   = "8192" # 8GB
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   
   container_definitions = jsonencode([

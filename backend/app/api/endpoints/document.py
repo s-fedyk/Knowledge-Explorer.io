@@ -267,6 +267,24 @@ async def list_documents(driver=Depends(get_neo4j_driver)):
         )
 
 
+@router.get("/drop")
+async def drop():
+    """
+    List all documents that have been uploaded and processed
+    Returns all documents.
+    """
+    from app.client.mongo_client import get_documents_collection
+    from app.dependencies import drop_all_neo4j_data
+
+    await drop_all_neo4j_data()
+    docs = await get_documents_collection()
+    await docs.drop_database()
+
+    return {
+        "success": "100"
+    }
+
+
 @router.get("/document/{uuid}")
 async def download_document(uuid: str):
     """

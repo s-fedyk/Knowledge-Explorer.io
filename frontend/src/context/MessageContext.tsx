@@ -384,7 +384,7 @@ export const MessageProvider = ({ children }) => {
 
     const queryRequest = {
       query: userMessage,
-      top_k: 20,
+      top_k: 5,
       mode: mode,
     };
 

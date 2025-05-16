@@ -112,22 +112,26 @@ collect {
     WITH c, count(distinct n) as freq
     RETURN c.text AS chunkText
     ORDER BY freq DESC
+    LIMIT 10
 } AS text_mapping,
 collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m) 
     WHERE NOT m IN nodes
     RETURN r.relationship_description AS descriptionText
+    LIMIT 10
 } as outsideRels,
 collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m) 
     WHERE m IN nodes
     RETURN r.relationship_description AS descriptionText
+    LIMIT 10
 } as insideRels,
 collect {
     UNWIND nodes as n
     RETURN n.entity_description AS descriptionText
+    LIMIT 10
 } as entities
 RETURN ID(nodes[0]) + "[SPLIT] Chunks:" + apoc.text.join(text_mapping, '|') +
        "\nRelationships: " + apoc.text.join(outsideRels + insideRels, '|') + 
@@ -241,3 +245,42 @@ def init_settings():
     Settings.node_parser = node_parser
 
     return Settings
+
+
+async def drop_all_neo4j_data():
+    """
+    Drop all data from Neo4j database (deletes all nodes and relationships)
+
+    This is a destructive operation and will remove ALL data from the database.
+    Use with extreme caution as this operation is irreversible.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get the Neo4j driver using your existing function
+        driver = get_neo4j_driver()
+
+        logger.warning("Preparing to delete ALL data from Neo4j database")
+
+        # Execute Cypher to delete everything
+        with driver.session(database=settings.neo4j_database) as session:
+
+            # Then delete all nodes
+            result_nodes = session.run("MATCH (n) DETACH DELETE n")
+            node_count = result_nodes.consume().counters.nodes_deleted
+
+            logger.warning(
+                f"Deleted {node_count} nodes from Neo4j database")
+
+        return {
+            "success": True,
+            "nodes_deleted": node_count
+        }
+
+    except Exception as e:
+        logger.error(f"Error dropping Neo4j database: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }

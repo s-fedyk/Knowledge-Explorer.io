@@ -123,15 +123,16 @@ def prepare_string(data):
         nodes_str += f"id: {node_id}, type: {node_type}{node_description}\n"
 
     rels_str = "Relationships are:\n"
-    for rel in data['rels']:
-        start = rel['start']
-        end = rel['end']
-        rel_type = rel['type']
-        if 'description' in rel and rel['description']:
-            description = f", description: {rel['description']}"
-        else:
-            description = ""
-        rels_str += f"({start})-[:{rel_type}]->({end}){description}\n"
+    if 'rels' in data.keys():
+        for rel in data['rels']:
+            start = rel['start']
+            end = rel['end']
+            rel_type = rel['type']
+            if 'description' in rel and rel['description']:
+                description = f", description: {rel['description']}"
+            else:
+                description = ""
+            rels_str += f"({start})-[:{rel_type}]->({end}){description}\n"
 
     return nodes_str + "\n" + rels_str
 
