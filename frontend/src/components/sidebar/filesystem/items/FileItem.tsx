@@ -8,10 +8,6 @@ function FileItem({ file }) {
 
   const isActive = activeFile?.uuid === file?.uuid;
 
-  const handleSingleClick = () => {
-    handleFileSelect(file);
-  };
-
   const handleDoubleClick = () => {
     handleFileClick(file);
   };
@@ -21,7 +17,6 @@ function FileItem({ file }) {
       className={`p-2 flex items-center cursor-pointer transition-all duration-50 ${
         isActive ? "bg-gray-100" : "hover:bg-gray-50"
       }`}
-      onClick={handleSingleClick}
       onDoubleClick={handleDoubleClick}
     >
       <svg

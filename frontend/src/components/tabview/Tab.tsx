@@ -35,12 +35,12 @@ function Tab({ tab }) {
       {/* Only show close button if not the default chat tab */}
       {tab.close && (
         <div
-          className="ml-2 transition-colors duration-150"
+          className="ml-2 transition-colors duration-100"
           onClick={onCloseClick}
         >
           <X
             size={16}
-            className="text-gray-500 hover:text-red-500 transition-colors duration-150"
+            className="text-gray-500 hover:text-red-500 transition-colors duration-100"
           />
         </div>
       )}

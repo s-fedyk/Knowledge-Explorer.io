@@ -50,7 +50,7 @@ const TabView = () => {
           href={GIT_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center text-gray-400 px-3 cursor-pointer absolute right-0 h-full bg-white border-l border-gray-200 hover:bg-gray-100 hover:text-black transition-colors duration-200"
+          className="flex items-center text-gray-400 px-3 cursor-pointer absolute right-0 h-full bg-white border-l border-gray-200 hover:bg-gray-100 hover:text-black transition-colors duration-100"
         >
           <Github size={30} />
           <span className={"pl-2"}>GitHub</span>
