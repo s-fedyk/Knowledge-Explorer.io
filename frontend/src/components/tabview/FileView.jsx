@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import PDFPage from "./PDFPage.tsx";
@@ -13,15 +13,12 @@ const FileView = ({ file }) => {
     file ? Array(file.pages.length).fill(false) : [],
   );
   const pageRefs = useRef([]);
+  const [observer, setObserver] = useState(null);
+
+  console.log("fileview");
 
   useEffect(() => {
-    setActivePages(file ? Array(file.pages.length).fill(false) : []);
-  }, [file]);
-
-  const observerRef = useRef(null);
-
-  useEffect(() => {
-    observerRef.current = new IntersectionObserver(
+    const new_observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           const idx = parseInt(entry.target.dataset.pageIndex);
@@ -41,22 +38,17 @@ const FileView = ({ file }) => {
         threshold: 0.1,
       },
     );
+    setObserver(new_observer);
+  }, [activePages]);
 
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [activePages, file]);
-
-  const setPageRef = useCallback((element, idx) => {
+  const setPageRef = (element, idx) => {
     pageRefs.current[idx] = element;
-    if (observerRef.current && element) {
-      observerRef.current.observe(element);
+    if (observer && element) {
+      observer.observe(element);
     }
-  }, []);
+  };
 
-  return file ? (
+  return file && observer ? (
     <div className="flex justify-center items-center bg-gray-100 p-4 overflow-auto">
       <div className="h-full">
         {file.pages.map((uri, index) => (

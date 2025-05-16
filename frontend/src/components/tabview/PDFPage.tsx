@@ -16,6 +16,7 @@ const PDFPage = ({ uri, active }) => {
   }
 
   const handleLoadSuccess = () => {
+    console.log("loaded?");
     setLoading(false);
   };
 
