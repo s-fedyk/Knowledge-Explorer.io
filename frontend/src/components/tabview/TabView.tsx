@@ -45,8 +45,7 @@ const TabView = () => {
             <Tab key={tab.id} tab={tab} />
           ))}
         </div>
-
-        <a
+        {/*         <a
           href={GIT_URL}
           target="_blank"
           rel="noopener noreferrer"
@@ -55,6 +54,7 @@ const TabView = () => {
           <Github size={30} />
           <span className={"pl-2"}>GitHub</span>
         </a>
+      */}
       </div>
 
       <div className="flex-1 overflow-auto bg-gray-100">{tabsContent}</div>

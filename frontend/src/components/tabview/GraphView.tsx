@@ -96,6 +96,11 @@ const NodeContent: FC<NodeContentProps> = ({ node }) => {
         </div>
       )}
 
+      <div>
+        <h3 className="text-sm font-medium text-gray-500">Labels</h3>
+        <p className="mt-1 text-sm text-gray-900">{node.labels}</p>
+      </div>
+
       {node.description && (
         <div>
           <h3 className="text-sm font-medium text-gray-500">Description</h3>
@@ -104,11 +109,6 @@ const NodeContent: FC<NodeContentProps> = ({ node }) => {
           </div>
         </div>
       )}
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-500">Labels</h3>
-        <p className="mt-1 text-sm text-gray-900">{node.labels}</p>
-      </div>
 
       {/* Node properties */}
       {node.properties && Object.keys(node.properties).length > 0 && (
@@ -322,6 +322,8 @@ function GraphView({ nodes }: GraphViewProps) {
 
   if (loading) return <div>Loading graph data...</div>;
   if (error) return <div>Error loading graph: {error.message}</div>;
+
+  console.log(data);
 
   return (
     <div className="relative h-full w-full">

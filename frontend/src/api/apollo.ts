@@ -21,8 +21,8 @@ export interface Node {
   caption?: string;
   description?: string;
   labels: string[];
-  file: string;
-  pageNumber: int;
+  file?: string;
+  pageNumber?: int;
 }
 
 export interface Relationship {
@@ -31,8 +31,8 @@ export interface Relationship {
   to: string;
   caption?: string;
   description?: string;
-  file: string;
-  pagenumber: int;
+  file?: string;
+  pageNumber?: int;
 }
 
 export interface NodeAndRelationship {
@@ -81,7 +81,7 @@ interface UseNodesWithRelationsResult {
 }
 
 export const useNodesWithRelations = (
-  ids: string[],
+  ids: int[],
 ): UseNodesWithRelationsResult => {
   const previousIdsRef = useRef<string[]>([]);
 
