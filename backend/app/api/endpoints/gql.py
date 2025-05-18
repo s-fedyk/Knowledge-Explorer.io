@@ -11,7 +11,7 @@ class Node:
     id: strawberry.ID
     labels: list[str]
     caption: str
-    description: str
+    description: Optional[str]
     file: Optional[str]
     page_number: Optional[int]
 
@@ -31,29 +31,6 @@ class Relationship:
 class NodeAndRelationship:
     nodes: list[Node]
     rels: list[Relationship]
-
-
-def _fetch_nodes_by_ids(tx, ids: List[str]) -> List[Dict]:
-    result = tx.run(
-        """
-        MATCH (c:Node)
-        WHERE c.id IN $ids
-        RETURN
-          c.id               AS id,
-          elementid(c) as identity,
-          c.text              AS text
-        """,
-        {"ids": ids},
-    )
-
-    return [
-        {
-            "id": rec["id"],
-            "text": rec["text"],
-            "identity": rec["identity"]
-        }
-        for rec in result
-    ]
 
 
 def _fetch_related_nodes(tx, ids: List[int]):
@@ -115,26 +92,6 @@ def _fetch_related_nodes(tx, ids: List[int]):
 @strawberry.type
 class Query:
     @strawberry.field
-    def nodes_by_ids(self, ids: List[strawberry.ID]) -> List[Node]:
-        records = []
-        with driver.session() as session:
-            result = session.execute_read(_fetch_nodes_by_ids, ids)
-            for rec in result:
-                records.append(
-                    Node(
-                        id=rec["id"],
-                        caption=rec["caption"],
-                        description=rec["entity_description"] if "entity_description" in rec.keys(
-                        ) else rec["text"],  # We only have entities or text nodes.
-                        file=rec["file_name"] if "entity_description" in rec.keys(
-                        ) else None,
-                        page_number=rec["page_label"] if "page_label" in rec.keys(
-                        ) else None
-                    )
-                )
-        return records
-
-    @strawberry.field
     def nodes_with_relations(self, ids: List[int]) -> NodeAndRelationship:
         result_nodes = []
         result_rels = []
@@ -157,8 +114,8 @@ class Query:
                         ) else rec["text"],  # We only have entities or text nodes.
                         file=rec["file_name"] if "entity_description" in rec.keys(
                         ) else None,
-                        page_number=rec["page_label"] if "page_label" in rec.keys(
-                        ) else None,
+                        page_number=int(rec["page_label"]) if "page_label" in rec.keys(
+                        ) and rec["page_label"] != "" else None,
                         labels=rec["labels"]
                     )
                 )
@@ -174,8 +131,8 @@ class Query:
                         ) else None,
                         file=rec["file_name"] if "file_name" in rec.keys(
                         ) else None,
-                        page_number=rec["page_label"] if "page_label" in rec.keys(
-                        ) else None
+                        page_number=int(rec["page_label"]) if "page_label" in rec.keys(
+                        ) and rec["page_label"] != "" else None
                     )
                 )
 
