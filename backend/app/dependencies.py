@@ -212,35 +212,49 @@ def init_settings():
 
 async def drop_all_neo4j_data():
     """
-    Drop all data from Neo4j database (deletes all nodes and relationships)
-
+    Drop all data from Neo4j database (deletes all indexes, constraints, nodes and relationships)
     This is a destructive operation and will remove ALL data from the database.
     Use with extreme caution as this operation is irreversible.
     """
     import logging
     logger = logging.getLogger(__name__)
-
     try:
         # Get the Neo4j driver using your existing function
         driver = get_neo4j_driver()
-
         logger.warning("Preparing to delete ALL data from Neo4j database")
 
-        # Execute Cypher to delete everything
+        # Execute Cypher to drop all indexes and constraints first
         with driver.session(database=settings.neo4j_database) as session:
+            # First drop all constraints
+            constraints = session.run("SHOW CONSTRAINTS").data()
+            for constraint in constraints:
+                constraint_name = constraint['name']
+                session.run(f"DROP CONSTRAINT {constraint_name} IF EXISTS")
+                logger.warning(f"Dropped constraint: {constraint_name}")
 
-            # Then delete all nodes
+            # Then drop all indexes
+            indexes = session.run("SHOW INDEXES").data()
+            for index in indexes:
+                index_name = index['name']
+                session.run(f"DROP INDEX {index_name} IF EXISTS")
+                logger.warning(f"Dropped index: {index_name}")
+
+            # Finally delete all nodes and relationships
             result_nodes = session.run("MATCH (n) DETACH DELETE n")
             node_count = result_nodes.consume().counters.nodes_deleted
+            relationship_count = result_nodes.consume().counters.relationships_deleted
 
             logger.warning(
-                f"Deleted {node_count} nodes from Neo4j database")
+                f"Deleted {node_count} nodes and {relationship_count} relationships from Neo4j database"
+            )
 
         return {
             "success": True,
-            "nodes_deleted": node_count
+            "constraints_dropped": len(constraints),
+            "indexes_dropped": len(indexes),
+            "nodes_deleted": node_count,
+            "relationships_deleted": relationship_count
         }
-
     except Exception as e:
         logger.error(f"Error dropping Neo4j database: {str(e)}")
         return {
