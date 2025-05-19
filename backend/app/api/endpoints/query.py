@@ -1,21 +1,13 @@
 from typing import AsyncGenerator
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import uuid
 import asyncio
 
-from llama_index.core.retrievers import VectorContextRetriever, PGRetriever
 from pydantic import BaseModel
-from llama_index.core import StorageContext
-from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
-from app.rag.GraphRAGLocalQueryEngine import GraphRAGLocalQueryEngine
-from llama_index.core.indices.property_graph import PropertyGraphIndex
-from llama_index.core import VectorStoreIndex
-from llama_index.core import StorageContext
-from app.dependencies import get_vector_store, get_graph_store, get_engine
+from app.dependencies import get_engine
 from app.logger import logger
-
-from app.client.mongo_client import get_index_info_collection, get_queries_collection
+from app.client.mongo_client import get_queries_collection
 
 active_queries = {}
 query_sources = {}
@@ -122,8 +114,8 @@ class QueryStatus(BaseModel):
 
 @router.get("/stream/{query_id}")
 async def stream_query_response(
-        query_id: str,
-        graph_store=Depends(get_graph_store)):
+        query_id: str
+):
     """
     Connect to a streaming endpoint using the query ID
     """
@@ -195,12 +187,3 @@ async def delete_query(query_id: str):
 
     del active_queries[query_id]
     return {"status": "deleted", "query_id": query_id}
-
-
-def cleanup_old_queries():
-    """
-    Remove completed or stale queries
-    """
-    # This could be implemented as a background task that runs periodically
-    # For now, we'll just have the manual endpoint above
-    pass

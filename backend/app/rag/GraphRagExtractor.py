@@ -3,6 +3,7 @@ from llama_index.core.schema import TransformComponent, BaseNode
 from llama_index.core.prompts.default_prompts import (
     DEFAULT_KG_TRIPLET_EXTRACT_PROMPT,
 )
+from llama_index.core import Settings
 from llama_index.core.prompts import PromptTemplate
 from llama_index.core.llms.llm import LLM
 from llama_index.core.graph_stores.types import (
@@ -15,7 +16,8 @@ from llama_index.core.indices.property_graph.utils import (
     default_parse_triplets_fn,
 )
 from llama_index.core.async_utils import run_jobs
-from typing import Any, List, Callable, Optional, Union, Dict
+from pydantic import PrivateAttr
+from typing import Any, List, Callable, Optional, Union
 import asyncio
 import re
 
@@ -103,7 +105,7 @@ class GraphRAGExtractor(TransformComponent):
         max_paths_per_chunk (int):
             The maximum number of paths to extract per chunk.
     """
-    llm: LLM
+    _llm: LLM = PrivateAttr(default_factory=lambda: Settings.llm)
     extract_prompt: PromptTemplate
     parse_fn: Callable
     num_workers: int
@@ -111,11 +113,10 @@ class GraphRAGExtractor(TransformComponent):
 
     def __init__(
         self,
-        llm: Optional[LLM] = None,
         extract_prompt: Optional[Union[str,
                                        PromptTemplate]] = KG_TRIPLET_EXTRACT_TMPL,
         parse_fn: Callable = default_parse_triplets_fn,
-        max_paths_per_chunk: int = 10,
+        max_paths_per_chunk: int = 4,
         num_workers: int = 4,
     ) -> None:
         """Init params."""
@@ -125,7 +126,7 @@ class GraphRAGExtractor(TransformComponent):
             extract_prompt = PromptTemplate(extract_prompt)
 
         super().__init__(
-            llm=llm or Settings.llm,
+            llm=Settings.llm,
             extract_prompt=extract_prompt or DEFAULT_KG_TRIPLET_EXTRACT_PROMPT,
             parse_fn=parse_fn,
             num_workers=num_workers,
@@ -163,7 +164,7 @@ class GraphRAGExtractor(TransformComponent):
         node.set_content(text)
 
         try:
-            llm_response = await self.llm.apredict(
+            llm_response = await self._llm.apredict(
                 self.extract_prompt,
                 text=text,
                 max_knowledge_triplets=self.max_paths_per_chunk,

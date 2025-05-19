@@ -22,7 +22,7 @@ from app.logger import logger
 from app.config import settings
 from app.rag.GraphRagExtractor import GraphRAGExtractor
 from app.utils.page_splitter import split_pdf_into_pages
-from app.client.mongo_client import get_documents_collection, get_index_info_collection
+from app.client.mongo_client import get_documents_collection
 
 
 router = APIRouter(tags=["document"])
@@ -145,7 +145,11 @@ async def process_document(file_path: Path, filename: str):
 
         for doc in documents:
             doc.metadata["filename"] = filename
-        logger.info("Loaded %d documents from %s", len(documents), filename)
+        logger.info(
+            "Loaded %d documents from %s",
+            len(documents),
+            filename
+        )
 
         storage_context = StorageContext.from_defaults(
             property_graph_store=get_graph_store(),
@@ -153,8 +157,6 @@ async def process_document(file_path: Path, filename: str):
         )
 
         kg_extractor = GraphRAGExtractor(
-            llm=Settings.llm,
-            max_paths_per_chunk=2,
             parse_fn=parse_fn,
         )
 
@@ -214,7 +216,7 @@ class DocumentList(BaseModel):
 
 
 @router.get("/documents", response_model=DocumentList)
-async def list_documents(driver=Depends(get_neo4j_driver)):
+async def list_documents():
     """
     List all documents that have been uploaded and processed
     Returns all documents.

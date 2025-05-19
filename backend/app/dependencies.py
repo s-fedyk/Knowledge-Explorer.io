@@ -4,54 +4,13 @@ from neo4j import GraphDatabase
 from app.rag.GraphRagStore import GraphRAGStore
 from app.rag.GraphRAGLocalQueryEngine import GraphRAGLocalQueryEngine
 from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
-from llama_index.core.indices.property_graph import PropertyGraphIndex
-from llama_index.core import StorageContext
 from llama_index.vector_stores.neo4jvector import Neo4jVectorStore
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.openai import OpenAIResponses
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core import Settings
 from app.config import settings
-
-RETRIEVAL_QUERY = """
-match (node: `__Entity__`)
-WITH collect(node) as nodes
-WITH nodes,
-collect {
-    UNWIND nodes as n
-    MATCH (c:Chunk)-[:MENTIONS]->(n)
-    WITH c, count(distinct n) as freq
-    RETURN c.text AS chunkText
-    ORDER BY freq DESC
-} AS text_mapping,
-collect {
-    UNWIND nodes as n
-    MATCH (n)-[:IN_COMMUNITY]->(c:__Community__)
-    WITH c, c.rank as rank, c.weight AS weight
-    RETURN c.summary 
-    ORDER BY rank, weight DESC
-} AS report_mapping,
-collect {
-    UNWIND nodes as n
-    MATCH (n)-[r]-(m) 
-    WHERE NOT m IN nodes
-    RETURN r.relationship_description AS descriptionText
-} as outsideRels,
-collect {
-    UNWIND nodes as n
-    MATCH (n)-[r]-(m) 
-    WHERE m IN nodes
-    RETURN r.relationship_description AS descriptionText
-} as insideRels,
-collect {
-    UNWIND nodes as n
-    RETURN n.entity_description AS descriptionText
-} as entities
-// We don't have covariates or claims here
-RETURN "Chunks:" + apoc.text.join(text_mapping, '|') + "\nReports: " + apoc.text.join(report_mapping,'|') +  
-       "\nRelationships: " + apoc.text.join(outsideRels + insideRels, '|') + 
-       "\nEntities: " + apoc.text.join(entities, "|") AS text, 1.0 AS score, nodes[0].id AS id, {_node_type:nodes[0]._node_type, _node_content:nodes[0]._node_content} AS metadata
-"""
 
 
 @lru_cache
@@ -97,7 +56,7 @@ def get_vector_store():
         text_node_property="text",
         embedding_node_property="embedding",
         metadata_node_property="metadata",
-        embedding_dimension=1536
+        embedding_dimension=3072
     )
 
     return vector_store
@@ -118,24 +77,24 @@ collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m) 
     WHERE NOT m IN nodes
-    RETURN r.relationship_description AS descriptionText
-    LIMIT 10
+    RETURN "(" +n.name + ")->(" + m.name + ") "+r.relationship_description AS descriptionText
+    LIMIT 30
 } as outsideRels,
 collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m) 
     WHERE m IN nodes
-    RETURN r.relationship_description AS descriptionText
-    LIMIT 10
+    RETURN "(" +n.name + ")->(" + m.name + ") "+ r.relationship_description AS descriptionText
+    LIMIT 30
 } as insideRels,
 collect {
     UNWIND nodes as n
-    RETURN n.entity_description AS descriptionText
-    LIMIT 10
+    RETURN "(" + n.name + ") " + n.entity_description AS descriptionText
+    LIMIT 30
 } as entities
-RETURN ID(nodes[0]) + "[SPLIT] Chunks:" + apoc.text.join(text_mapping, '|') +
-       "\nRelationships: " + apoc.text.join(outsideRels + insideRels, '|') + 
-       "\nEntities: " + apoc.text.join(entities, "|") AS text, 
+RETURN ID(nodes[0]) + "[SPLIT]"+ apoc.text.join(text_mapping, '|') +
+       "<>" + apoc.text.join(outsideRels + insideRels, '|') + 
+       "<>" + apoc.text.join(entities, "|") AS text, 
        1.0 as score,
        nodes[0].id as id,
        {_node_type:nodes[0]._node_type, _node_content:nodes[0]._node_content} AS metadata
@@ -159,11 +118,12 @@ def get_local_engine(top_k: int):
         embedding_node_property="embedding",
         metadata_node_property="metadata",
         retrieval_query=RET_QUERY,
-        embedding_dimension=1536,
+        embedding_dimension=3072,
     )
 
     local_index = VectorStoreIndex.from_vector_store(
-        vector_store
+        vector_store,
+        embed_model=Settings.embed_model
     )
 
     local_query_engine = GraphRAGLocalQueryEngine(
@@ -194,12 +154,13 @@ def get_global_engine(top_k: int):
         embedding_node_property="embedding",
         metadata_node_property="metadata",
         retrieval_query=RET_QUERY_COMMUNITY,
-        embedding_dimension=1536
+        embedding_dimension=3072
     )
     graph_store = get_graph_store()
 
     index = VectorStoreIndex.from_vector_store(
-        vector_store=vector_store
+        vector_store=vector_store,
+        embed_model=Settings.embed_model
     )
 
     query_engine = GraphRAGQueryEngine(
@@ -223,16 +184,18 @@ def get_engine(mode: str, top_k: int):
 
 def init_settings():
     """Create a service context for the RAG pipeline."""
-    llm = OpenAI(
+    llm = OpenAIResponses(
         streaming=True,
         api_key=settings.openai_api_key,
         model=settings.llm_model,
-        temperature=0.1
+        temperature=0.1,
+        reasoning="high"
     )
 
     embed_model = OpenAIEmbedding(
         api_key=settings.openai_api_key,
-        model="text-embedding-ada-002"
+        model="text-embedding-3-large",
+        dimensions=3072
     )
 
     node_parser = SentenceSplitter(

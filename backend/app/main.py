@@ -6,6 +6,7 @@ from app.api.endpoints import gql
 from contextlib import asynccontextmanager
 from app.client.mongo_client import get_mongo_client
 from app.client.s3_client import get_s3_client
+from app.dependencies import init_settings
 
 
 @asynccontextmanager
@@ -13,6 +14,7 @@ async def lifespan(_: FastAPI):
     # everything before the yield executes before the app starts up.
     await get_mongo_client()
     get_s3_client()
+    init_settings()
     yield
 
 app = FastAPI(

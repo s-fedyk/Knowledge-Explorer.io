@@ -1,5 +1,7 @@
 from llama_index.core.base.response.schema import StreamingResponse
 from llama_index.core.query_engine import CustomQueryEngine
+from llama_index.core.postprocessor import LLMRerank
+
 from llama_index.core.llms import LLM, ChatResponse
 from llama_index.core import VectorStoreIndex
 from llama_index.core.llms import ChatMessage
@@ -22,13 +24,19 @@ class GraphRAGQueryEngine(CustomQueryEngine):
 
     def custom_query(self, query_str: str) -> StreamingResponse:
         """Process all community summaries to generate answers to a specific query."""
+        summaries, source_nodes = self.get_summaries(query_str)
 
-        response_gen = self.response_generator(query_str)
+        response_gen = self.response_generator(query_str, summaries)
         logger.info("Response generator created...")
 
-        return StreamingResponse(response_gen=response_gen)
+        return StreamingResponse(
+            response_gen=response_gen,
+            source_nodes=source_nodes
+        )
 
     async def acustom_query(self, query_str: str) -> StreamingResponse:
+        logger.info("Using llm, %s", self._llm)
+
         summaries, source_nodes = await self.aget_summaries(query_str)
         response_gen = self.aresponse_generator(query_str, summaries)
 
@@ -112,18 +120,19 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         retriever = self.index.as_retriever(
             similarity_top_k=self.similarity_top_k
         )
+
         # Use the async retrieve method
         nodes_retrieved = await retriever.aretrieve(query_str)
 
+        logger.info(nodes_retrieved)
+
         summaries = []
         sources = []
-        logger.info(nodes_retrieved)
         for node in nodes_retrieved:
             source, text = node.text.split(sep="[SPLIT]")
             summaries.append(text)
             sources.append(int(source))
 
-        logger.info(summaries, sources)
         return summaries, sources
 
     def generate_answer_from_summary(self, community_summary, query):

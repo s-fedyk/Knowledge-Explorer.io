@@ -3,9 +3,7 @@ from llama_index.core.llms import ChatMessage
 import re
 import networkx as nx
 from llama_index.core import Settings
-from graspologic.partition import hierarchical_leiden
 from collections import defaultdict
-from llama_index.llms.openai import OpenAI
 from llama_index.core.schema import TextNode
 from llama_index.core.vector_stores.utils import node_to_metadata_dict
 from app.logger import logger
@@ -72,8 +70,11 @@ SET c.community_rank = rank;
 """
 
 COMMUNITY_SUMMARY_PROMPT = """
-You are provided with a set of entity and relationship descriptions from a knowledge graph.
-The goal is to provide a concise natural language summary to capture the most critical and relevant details that highlight the nature and significance of each relationship and entity. Ensure that the summary is coherent and integrates the information in a way that emphasizes key aspects.
+You are a helpful assistant responsible for generating a comprehensive summary of the data provided below.
+Given some amount of entities, and a list of descriptions, all related to the same entity or group of entities.
+Please concatenate all of these into a single, comprehensive description. Make sure to include information collected from all the descriptions.
+If the provided descriptions are contradictory, please resolve the contradictions and provide a single, coherent summary.
+Make sure it is written in third person, and include the entity names so we the have full context.
 """
 
 COMMUNITY_INFO_QUERY = """
@@ -94,10 +95,6 @@ UNWIND $data AS row
 MERGE (c:__Community__ {id:row.community})
 SET c.text = row.text
 SET c.embedding = row.embedding
-"""
-
-SYSTEM_SUMMARY_PROMPT = """
-Given an input triples, generate the information summary. No pre-amble.
 """
 
 METADATA_QUERY = """
@@ -187,7 +184,7 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
                 content=community_info,
             ),
         ]
-        response = OpenAI().chat(messages)
+        response = Settings.llm.chat(messages)
         clean_response = re.sub(r"^assistant:\s*", "", str(response)).strip()
         return clean_response
 
@@ -207,7 +204,7 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
             ),
             ChatMessage(role="user", content=text),
         ]
-        response = OpenAI().chat(messages)
+        response = Settings.llm.chat(messages)
         clean_response = re.sub(r"^assistant:\s*", "", str(response)).strip()
         return clean_response
 
@@ -246,21 +243,6 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
                 "content": content
             }
         )
-
-    def _create_nx_graph(self):
-        """Converts internal graph representation to NetworkX graph."""
-        nx_graph = nx.Graph()
-        triplets = self.get_triplets()
-        for entity1, relation, entity2 in triplets:
-            nx_graph.add_node(entity1.name)
-            nx_graph.add_node(entity2.name)
-            nx_graph.add_edge(
-                relation.source_id,
-                relation.target_id,
-                relationship=relation.label,
-                description=relation.properties["relationship_description"],
-            )
-        return nx_graph
 
     def _collect_community_info(self, nx_graph, clusters):
         """
