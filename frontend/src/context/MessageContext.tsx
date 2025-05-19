@@ -312,24 +312,28 @@ export const MessageProvider = ({ children }) => {
     // Handle any remaining token content
     if (processedToken.length > 0) {
       if (state.currentSectionType === SECTION_TYPES.TEXT) {
-        // In text mode, append to text buffer
-        state.currentTextBuffer += processedToken;
+        // FIX: Don't double-append content - either use buffer or direct append, not both
 
-        // Update or create text section
+        // In text mode, check if we have an existing text section
         if (
           state.sections.length > 0 &&
           state.sections[state.sections.length - 1].type === SECTION_TYPES.TEXT
         ) {
-          // Append to last text section
+          // Append directly to last text section
           state.sections[state.sections.length - 1].content += processedToken;
         } else {
-          // Create new text section
+          // We need a new text section - add current buffer plus new token
+          state.currentTextBuffer += processedToken;
+
+          // Create new text section with the buffer content
           state.sections.push({
             type: SECTION_TYPES.TEXT,
             content: state.currentTextBuffer,
             id: `text-${Date.now()}`,
             complete: false,
           });
+
+          // Clear the buffer after using it
           state.currentTextBuffer = "";
         }
 
