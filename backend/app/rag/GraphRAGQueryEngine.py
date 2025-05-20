@@ -157,6 +157,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         prompt = (
             f"Given the community summary: {community_summary}, "
             f"how would you answer the following query? Query: {query}"
+            f"Your answer can include markdown snippets"
         )
         messages = [
             ChatMessage(role="system", content=prompt),
@@ -170,7 +171,10 @@ class GraphRAGQueryEngine(CustomQueryEngine):
 
     def aggregate_answers(self, community_answers):
         """Aggregate individual community answers into a final, coherent response."""
-        prompt = "Logically combine the following intermediate answers into a final, coherent, concise response."
+        prompt = (
+            f"Logically combine the following intermediate answers into a final, coherent, concise response."
+            f"Your answer can include markdown snippets"
+        )
         messages = [
             ChatMessage(role="system", content=prompt),
             ChatMessage(
@@ -189,7 +193,10 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         Aggregate individual community answers and return a generator that streams the response.
         This method returns a generator directly, not a coroutine.
         """
-        prompt = "Logically combine the following intermediate answers into a final, coherent, concise response."
+        prompt = (
+            f"Logically combine the following intermediate answers into a final, coherent, concise response."
+            f"Your answer can include markdown snippets"
+        )
         messages = [
             ChatMessage(role="system", content=prompt),
             ChatMessage(

@@ -2,15 +2,13 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import uuid
+import json
 import asyncio
 
 from pydantic import BaseModel
 from app.dependencies import get_engine
 from app.logger import logger
 from app.client.mongo_client import get_queries_collection
-
-active_queries = {}
-query_sources = {}
 
 # Configure logging
 router = APIRouter(tags=["query"])
@@ -69,9 +67,11 @@ async def data_streamer(response_gen) -> AsyncGenerator[str, None]:
     try:
         async for response in response_gen:
             token = str(response.delta)
-            logger.info(token)
 
-            yield f"data: {token}\n\n"
+            json_token = json.dumps(token)
+            logger.info(f"Token is {json_token}")
+
+            yield f"data: {json_token}\n\n"
             await asyncio.sleep(0.01)
 
         # Signal completion
