@@ -50,8 +50,6 @@ export const MessageProvider = ({ children }) => {
   });
 
   const addMessage = (sender, text, sections = []) => {
-    console.log("message", sender, text);
-
     setMessages((prev) => [
       ...prev,
       {
@@ -220,6 +218,7 @@ export const MessageProvider = ({ children }) => {
    * @returns {string} Clean text without markers
    */
   const processTokenStream = (token, botMessageIndex) => {
+    token = JSON.parse(token);
     const state = streamingStateRef.current;
     let processedToken = token;
     let updatedSections = false;

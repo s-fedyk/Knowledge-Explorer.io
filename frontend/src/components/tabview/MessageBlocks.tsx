@@ -1,5 +1,6 @@
 // File: components/chat/MessageBlocks.jsx
 import React from "react";
+import { Remark } from "react-remark";
 
 /**
  * SummaryBlock component renders a summary section
@@ -29,7 +30,10 @@ export const SummaryBlock = ({ content, complete }) => {
           </span>
         )}
       </div>
-      <div className="text-gray-700 whitespace-pre-wrap">{content}</div>
+      {/* Use ReactMarkdown here */}
+      <div className="text-gray-700">
+        <Remark>{content}</Remark>
+      </div>
     </div>
   );
 };
@@ -62,7 +66,10 @@ export const FinalBlock = ({ content, complete }) => {
           </span>
         )}
       </div>
-      <div className="text-gray-700 whitespace-pre-wrap">{content}</div>
+      {/* Use ReactMarkdown here */}
+      <div className="text-gray-700">
+        <Remark>{content}</Remark>
+      </div>
     </div>
   );
 };
@@ -82,6 +89,11 @@ export const SectionRenderer = ({ section }) => {
       );
     case "text":
     default:
-      return <div className="whitespace-pre-wrap">{section.content}</div>;
+      // Use ReactMarkdown here
+      return (
+        <div className="text-gray-700">
+          <Remark>{section.content}</Remark>
+        </div>
+      );
   }
 };
