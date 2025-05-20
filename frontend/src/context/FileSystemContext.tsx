@@ -48,6 +48,18 @@ export const FileSystemProvider = ({ children }) => {
     fetchDocuments();
   }, []);
 
+  const getFileFromUUID = (UUID) => {
+    console.log(UUID);
+    console.log(directory);
+    for (const file of directory) {
+      if (file.uuid == UUID) {
+        return file;
+      }
+    }
+
+    return null;
+  };
+
   // Handle file selection
   const handleFileSelect = (file) => {
     setActiveFile(file);
@@ -56,6 +68,7 @@ export const FileSystemProvider = ({ children }) => {
   const value = {
     directory,
     isLoading,
+    getFileFromUUID,
     activeFile,
     handleFileSelect,
   };

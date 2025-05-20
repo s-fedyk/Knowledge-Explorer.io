@@ -4,6 +4,7 @@ import type { MouseEventCallbacks } from "@neo4j-nvl/react";
 import React, { FC, useState, useEffect, useMemo } from "react";
 import { useNodesWithRelations } from "@api/apollo.ts";
 import { useGraphView } from "@context/GraphViewContext";
+import GraphSidebar from "./GraphSidebar";
 import "./GraphView.css"; // For the slide animations
 
 /**
@@ -75,172 +76,6 @@ function assignColors(nodes) {
     };
   });
 }
-
-// Component for displaying node content
-interface NodeContentProps {
-  node: Node;
-}
-
-const NodeContent: FC<NodeContentProps> = ({ node }) => {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-medium text-gray-500">ID</h3>
-        <p className="mt-1 text-sm text-gray-900">{node.id}</p>
-      </div>
-
-      {node.caption && (
-        <div>
-          <h3 className="text-sm font-medium text-gray-500">Caption</h3>
-          <p className="mt-1 text-sm text-gray-900">{node.caption}</p>
-        </div>
-      )}
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-500">Labels</h3>
-        <p className="mt-1 text-sm text-gray-900">{node.labels}</p>
-      </div>
-
-      {node.description && (
-        <div>
-          <h3 className="text-sm font-medium text-gray-500">Description</h3>
-          <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">
-            {node.description}
-          </div>
-        </div>
-      )}
-
-      {/* Node properties */}
-      {node.properties && Object.keys(node.properties).length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium text-gray-500">Properties</h3>
-          <div className="mt-1 text-sm text-gray-900">
-            {Object.entries(node.properties).map(([key, value]) => (
-              <div key={key} className="mb-2">
-                <span className="font-medium">{key}: </span>
-                <span>{String(value)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Component for displaying relationship content
-interface RelationshipContentProps {
-  relationship: Relationship;
-}
-
-const RelationshipContent: FC<RelationshipContentProps> = ({
-  relationship,
-}) => {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-medium text-gray-500">ID</h3>
-        <p className="mt-1 text-sm text-gray-900">{relationship.id}</p>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-500">Type</h3>
-        <p className="mt-1 text-sm text-gray-900">{relationship.caption}</p>
-      </div>
-
-      {relationship.description && (
-        <div>
-          <h3 className="text-sm font-medium text-gray-500">Description</h3>
-          <p className="mt-1 text-sm text-gray-900">
-            {relationship.description}
-          </p>
-        </div>
-      )}
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-500">Source</h3>
-        <p className="mt-1 text-sm text-gray-900">{relationship.from}</p>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-medium text-gray-500">Target</h3>
-        <p className="mt-1 text-sm text-gray-900">{relationship.to}</p>
-      </div>
-
-      {/* Relationship properties */}
-      {relationship.properties &&
-        Object.keys(relationship.properties).length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-500">Properties</h3>
-            <div className="mt-1 text-sm text-gray-900">
-              {Object.entries(relationship.properties).map(([key, value]) => (
-                <div key={key} className="mb-2">
-                  <span className="font-medium">{key}: </span>
-                  <span>{String(value)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-    </div>
-  );
-};
-
-// Unified sidebar that uses the appropriate content component
-interface ElementSidebarProps {
-  element: Node | Relationship;
-  elementType: "node" | "relationship";
-  onClose: () => void;
-  isExiting: boolean;
-}
-
-const ElementSidebar: FC<ElementSidebarProps> = ({
-  element,
-  elementType,
-  onClose,
-  isExiting,
-}) => {
-  if (!element) return null;
-
-  // Determine title based on element type
-  const title =
-    elementType === "node" ? "Node Details" : "Relationship Details";
-
-  return (
-    <div
-      className={`h-full w-64 border-l element-sidebar overflow-y-auto border-gray-400 ${
-        isExiting ? "animate-slide-out" : "animate-slide-in"
-      }`}
-    >
-      <div className="flex justify-between items-center mb-4">
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-400">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M13 17l5-5-5-5M6 17l5-5-5-5" />
-          </svg>
-        </button>
-        <h2 className="text-lg font-medium">{title}</h2>
-      </div>
-
-      <div className="p-4">
-        {elementType === "node" ? (
-          <NodeContent node={element as Node} />
-        ) : (
-          <RelationshipContent relationship={element as Relationship} />
-        )}
-      </div>
-    </div>
-  );
-};
 
 interface GraphViewProps {
   nodes: string[];
@@ -320,10 +155,41 @@ function GraphView({ nodes }: GraphViewProps) {
     onZoom: (zoomLevel: number) => {},
   };
 
-  if (loading) return <div>Loading graph data...</div>;
-  if (error) return <div>Error loading graph: {error.message}</div>;
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-full bg-gray-50">
+        <div className="flex items-center space-x-2 text-gray-600">
+          <svg
+            className="animate-spin h-5 w-5"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <span>Loading graph data...</span>
+        </div>
+      </div>
+    );
 
-  console.log(data);
+  if (error)
+    return (
+      <div className="p-4 bg-gray-50 text-gray-800">
+        Error loading graph: {error.message}
+      </div>
+    );
 
   return (
     <div className="relative h-full w-full">
@@ -339,7 +205,7 @@ function GraphView({ nodes }: GraphViewProps) {
       {/* Show unified sidebar with specialized content based on element type */}
       {selectedElement && selectedElementType && (
         <div className="absolute top-0 right-0 h-full">
-          <ElementSidebar
+          <GraphSidebar
             element={selectedElement}
             elementType={selectedElementType}
             onClose={closeSidebar}

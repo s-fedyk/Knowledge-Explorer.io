@@ -3,12 +3,13 @@ import { useFileSystemContext } from "@context/FileSystemContext";
 import { useTabContext } from "@context/TabContext";
 
 function FileItem({ file }) {
-  const { activeFile, handleFileSelect } = useFileSystemContext();
+  const { activeFile } = useFileSystemContext();
   const { handleFileClick } = useTabContext();
 
   const isActive = activeFile?.uuid === file?.uuid;
 
   const handleDoubleClick = () => {
+    console.log(file);
     handleFileClick(file);
   };
 
