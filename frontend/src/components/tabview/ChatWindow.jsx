@@ -47,18 +47,16 @@ const ChatWindow = () => {
       </div>
 
       {/* Input area */}
-      <div className="flex-none bg-white p-4">
-        <div className="flex w-full">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask a question about the knowledge base..."
-            className="flex-grow rounded text-gray-900 shadow-md p-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition duration-150 ease-in-out bg-white"
-            disabled={isStreaming}
-          />
-        </div>
+      <div className="flex-none bg-gray-400">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Ask a question about the knowledge base..."
+          className="flex-grow w-full h-full rounded text-gray-900 shadow-md p-5 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent transition duration-150 ease-in-out bg-white"
+          disabled={isStreaming}
+        />
       </div>
     </div>
   );

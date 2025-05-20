@@ -35,11 +35,11 @@ const MessageBubble = ({ message, formatTime, isLastMessage, isStreaming }) => {
       }`}
     >
       <div
-        className={`max-w-md p-3 rounded-lg ${
+        className={`max-w-xlg p-5 rounded-lg ${
           message.sender === "user"
             ? "bg-blue-500 text-white"
-            : message.sender === "system"
-              ? "bg-gray-200 text-gray-800"
+            : message.sender === "bot"
+              ? "bg-white border-gray-200 border text-gray-800"
               : "bg-white text-gray-800 shadow"
         }`}
       >
