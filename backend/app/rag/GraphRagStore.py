@@ -6,6 +6,8 @@ from llama_index.core import Settings
 from collections import defaultdict
 from llama_index.core.schema import TextNode
 from llama_index.core.vector_stores.utils import node_to_metadata_dict
+from llama_index.core.graph_stores.types import EntityNode, LabelledNode, Relation
+from pydantic.v1 import parse
 from app.logger import logger
 
 PROJECT_GRAPH = """
@@ -107,6 +109,11 @@ MATCH (e:__Community__)
 SET e += $content
 """
 
+CHUNK_QUERY = """
+MATCH (n:Chunk)
+return n.id as id, n.questions_this_excerpt_can_answer as questions
+"""
+
 
 def prepare_string(data):
     nodes_str = "Nodes are:\n"
@@ -132,6 +139,34 @@ def prepare_string(data):
             rels_str += f"({start})-[:{rel_type}]->({end}){description}\n"
 
     return nodes_str + "\n" + rels_str
+
+
+class QuestionNode(LabelledNode):
+    """A question that can be answered by a chunk"""
+
+    def __str__(self) -> str:
+        """Return the string representation of the relation."""
+        if self.properties:
+            return f"{self.label} ({self.properties})"
+        return self.label
+
+    @property
+    def id(self) -> str:
+        """Get the relation id."""
+        return self.label
+
+
+def parse_questions(text: str):
+    # Pattern: digit(s) followed by period and space, capturing the questions
+    pattern = r'\d+\.\s+'
+    # Split the text using the pattern
+    questions = re.split(pattern, text)
+
+    # Remove any empty strings from the beginning if the text starts with a number
+    if questions and not questions[0]:
+        questions.pop(0)
+
+    return questions
 
 
 class GraphRAGStore(Neo4jPropertyGraphStore):
@@ -208,6 +243,44 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
         clean_response = re.sub(r"^assistant:\s*", "", str(response)).strip()
         return clean_response
 
+    def generate_questions(self, chunks):
+        question_nodes = []
+        relations = []
+        for chunk in chunks:
+            logger.info("Chunks is %s", chunk)
+            question_text = chunk["questions"]
+            question_list = parse_questions(question_text)
+            name = chunk["id"]
+
+            for idx, question in enumerate(question_list):
+                question_name = f"{name}-{idx}-question"
+
+                relations.append(
+                    Relation(
+                        label="ANSWERS",
+                        source_id=name,
+                        target_id=question_name
+                    )
+                )
+
+                meta = node_to_metadata_dict(
+                    TextNode(),
+                    remove_text=False,
+                    flat_metadata=False
+                )
+                meta["entity_description"] = question
+                embedding = Settings.embed_model.get_query_embedding(question)
+                meta["embedding"] = embedding
+                question_node = EntityNode(
+                    name=question_name,
+                    label="__Question__",
+                    properties=meta
+                )
+                question_nodes.append(question_node)
+
+        self.upsert_nodes(question_nodes)
+        self.upsert_relations(relations)
+
     def rebuild_communities(self):
         res = self.structured_query(PURGE_COMMUNITIES, {})
         logger.info("community purge: %s", res)
@@ -221,6 +294,11 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
 
         logger.info("Creating community summaries...")
         self.create_community_summary(level=1)
+
+        logger.info("Getting chunks...")
+        chunks = self.structured_query(CHUNK_QUERY, {})
+        logger.info("Chunks=%s", chunks)
+        self.generate_questions(chunks)
 
     def build_communities(self):
         """Builds communities from the graph and summarizes them."""

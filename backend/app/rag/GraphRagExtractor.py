@@ -1,10 +1,12 @@
+from urllib.parse import parse_qs
 from llama_index.core.bridge.pydantic import BaseModel, Field
-from llama_index.core.schema import TransformComponent, BaseNode
+from llama_index.core.schema import TextNode, TransformComponent, BaseNode
 from llama_index.core.prompts.default_prompts import (
     DEFAULT_KG_TRIPLET_EXTRACT_PROMPT,
 )
 from llama_index.core import Settings
 from llama_index.core.prompts import PromptTemplate
+from llama_index.core.extractors import QuestionsAnsweredExtractor
 from llama_index.core.llms.llm import LLM
 from llama_index.core.graph_stores.types import (
     EntityNode,
@@ -17,7 +19,7 @@ from llama_index.core.indices.property_graph.utils import (
 )
 from llama_index.core.async_utils import run_jobs
 from pydantic import PrivateAttr
-from typing import Any, List, Callable, Optional, Union
+from typing import Any, List, Callable, Optional, Union, Dict
 import asyncio
 import re
 
@@ -145,28 +147,31 @@ class GraphRAGExtractor(TransformComponent):
             self.acall(nodes, show_progress=show_progress, **kwargs)
         )
 
-    async def _aextract(self, node: BaseNode) -> BaseNode:
+    async def _aextract(self, node: TextNode) -> TextNode:
         """Extract triples from a node."""
         assert hasattr(node, "text")
 
-        text = node.get_content(metadata_mode="llm")
+        logger.info(
+            "node content is %s",
+            node.text
+        )
 
         def clean_text(text_to_clean):
             # Lots of weird spacing.
             without_special_whitespace = re.sub(
-                r'[\n\r\t\f\v]+', ' ', text_to_clean)
-
+                r'[\n\r\t\f\v]+',
+                ' ',
+                text_to_clean
+            )
             normalized = re.sub(r'\s+', ' ', without_special_whitespace)
-
             return normalized.strip()
 
-        text = clean_text(text)
-        node.set_content(text)
+        node.text = clean_text(node.text)
 
         try:
             llm_response = await self._llm.apredict(
                 self.extract_prompt,
-                text=text,
+                text=node.text,
                 max_knowledge_triplets=self.max_paths_per_chunk,
             )
             entities, entities_relationship = self.parse_fn(llm_response)
@@ -177,6 +182,8 @@ class GraphRAGExtractor(TransformComponent):
         existing_nodes = node.metadata.pop(KG_NODES_KEY, [])
         existing_relations = node.metadata.pop(KG_RELATIONS_KEY, [])
         entity_metadata = node.metadata.copy()
+
+        logger.info("META=%s", entity_metadata)
         for entity, entity_type, description in entities:
             entity_metadata["entity_description"] = description
             entity_node = EntityNode(
@@ -199,6 +206,7 @@ class GraphRAGExtractor(TransformComponent):
 
         node.metadata[KG_NODES_KEY] = existing_nodes
         node.metadata[KG_RELATIONS_KEY] = existing_relations
+
         return node
 
     async def acall(

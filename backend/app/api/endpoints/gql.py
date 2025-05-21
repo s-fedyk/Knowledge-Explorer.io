@@ -112,7 +112,7 @@ class Query:
                         caption=rec["caption"],
                         description=rec["entity_description"] if "entity_description" in rec.keys(
                         ) else rec["text"],  # We only have entities or text nodes.
-                        file=rec["file_name"] if "entity_description" in rec.keys(
+                        file=rec["file_name"] if "file_name" in rec.keys(
                         ) else None,
                         page_number=int(rec["page_label"]) if "page_label" in rec.keys(
                         ) and rec["page_label"] != "" else None,

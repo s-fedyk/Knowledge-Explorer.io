@@ -23,9 +23,25 @@ from app.config import settings
 from app.rag.GraphRagExtractor import GraphRAGExtractor
 from app.utils.page_splitter import split_pdf_into_pages
 from app.client.mongo_client import get_documents_collection
+from llama_index.core.extractors import QuestionsAnsweredExtractor
 
 
 router = APIRouter(tags=["document"])
+
+QUESTION_GEN_TEMPLATE = """
+Here is the context:
+{context_str}
+
+Given the contextual information, \
+generate {num_questions} questions this context can provide \
+specific answers to which are unlikely to be found elsewhere.
+
+Your answers should be formatted such as:
+1. <question 1 content>
+2. <question 2 content>
+...
+<num_questions>. <question num_questions content>
+"""
 
 
 class UploadResponse(BaseModel):
@@ -156,6 +172,13 @@ async def process_document(file_path: Path, filename: str):
             vector_store=get_vector_store()
         )
 
+        qa_extractor = QuestionsAnsweredExtractor(
+            questions=3,
+            prompt_template=QUESTION_GEN_TEMPLATE,
+            embedding_only=False
+        )
+        # KG extractor depends on qa extractor.
+        # We create question entities.
         kg_extractor = GraphRAGExtractor(
             parse_fn=parse_fn,
         )
@@ -163,7 +186,7 @@ async def process_document(file_path: Path, filename: str):
         index = await run_in_threadpool(
             PropertyGraphIndex,
             nodes=nodes,
-            kg_extractors=[kg_extractor],
+            kg_extractors=[qa_extractor, kg_extractor],
             storage_context=storage_context,
             property_graph_store=get_graph_store(),
             show_progress=True,

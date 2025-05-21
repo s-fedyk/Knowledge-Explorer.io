@@ -17,10 +17,6 @@ from app.logger import logger
 
 import re
 
-AGGREGATE_PROMPT = """
-You are a query engine aggregator. You task is to combine information from a knowledge graph into a concise answer to a user provided query. The answer should effectively incorporate data to answer all aspects of the query.
-"""
-
 
 class GraphRAGLocalQueryEngine(CustomQueryEngine):
     index: VectorStoreIndex
@@ -31,6 +27,7 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         prompt = (
             f"Given the context extracted from a knowledge graph: {context}"
             f"how would you answer the following query? Query: {query}"
+            f"Your answer can include markdown snippets"
         )
         messages = [
             ChatMessage(role="system", content=prompt),
@@ -47,6 +44,7 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         prompt = (
             f"Given the context extracted from a knowledge graph: {context}"
             f"how would you answer the following query? Query: {query}"
+            f"Your answer can include markdown snippets"
         )
         messages = [
             ChatMessage(role="system", content=prompt),
@@ -95,16 +93,20 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         relationships = list(map(to_node, relationships))
 
         ranker = LLMRerank(
-            choice_batch_size=5, top_n=10
+            choice_batch_size=5,
+            top_n=10
         )
         chunks = ranker.postprocess_nodes(
-            chunks, query_str=query_str
+            chunks,
+            query_str=query_str
         )
         entities = ranker.postprocess_nodes(
-            entities, query_str=query_str
+            entities,
+            query_str=query_str
         )
         relationships = ranker.postprocess_nodes(
-            relationships, query_str=query_str
+            relationships,
+            query_str=query_str
         )
 
         def to_text(node: NodeWithScore) -> str:
