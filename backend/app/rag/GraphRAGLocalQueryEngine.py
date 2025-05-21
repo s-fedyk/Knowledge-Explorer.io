@@ -9,12 +9,10 @@ from typing import Generator, AsyncGenerator
 from pydantic import PrivateAttr
 from llama_index.core.schema import (
     NodeWithScore,
-    BaseNode,
     TextNode,
 )
 
 from app.logger import logger
-
 import re
 
 
@@ -116,6 +114,12 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         chunks = "\n".join(list(map(to_text, chunks)))
         entities = "\n".join(list(map(to_text, entities)))
         relationships = "\n".join(list(map(to_text, relationships)))
+
+        context = f"""
+        Chunks: {chunks}
+        entities: {entities}
+        relationships: {relationships}
+        """
 
         generator = self.stream_answer_from_context(
             context,

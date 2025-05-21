@@ -6,7 +6,6 @@ from llama_index.core.prompts.default_prompts import (
 )
 from llama_index.core import Settings
 from llama_index.core.prompts import PromptTemplate
-from llama_index.core.extractors import QuestionsAnsweredExtractor
 from llama_index.core.llms.llm import LLM
 from llama_index.core.graph_stores.types import (
     EntityNode,
@@ -19,7 +18,7 @@ from llama_index.core.indices.property_graph.utils import (
 )
 from llama_index.core.async_utils import run_jobs
 from pydantic import PrivateAttr
-from typing import Any, List, Callable, Optional, Union, Dict
+from typing import Any, List, Callable, Optional, Union
 import asyncio
 import re
 
@@ -150,11 +149,6 @@ class GraphRAGExtractor(TransformComponent):
     async def _aextract(self, node: TextNode) -> TextNode:
         """Extract triples from a node."""
         assert hasattr(node, "text")
-
-        logger.info(
-            "node content is %s",
-            node.text
-        )
 
         def clean_text(text_to_clean):
             # Lots of weird spacing.
