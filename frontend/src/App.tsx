@@ -11,27 +11,48 @@ import { FileSystemProvider } from "@context/FileSystemContext";
 import { QueryModeProvider } from "@context/QueryModeContext";
 import NavSidebar from "./components/sidebar/NavSidebar";
 import TabView from "./components/tabview/TabView";
-
 import { GoogleOAuthProvider } from "@react-oauth/google";
-
 // TODO putting this in public might be a bit more prod-ready.
 import { pdfjs } from "react-pdf";
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <ApolloProvider client={client}>
       <QueryModeProvider>
         <TabProvider>
           <FileSystemProvider>
             <MessageProvider>
-              {/* Use h-screen but remove w-screen */}
-              <div className="flex h-screen w-screen bg-gray-100">
-                {/* Navigation Sidebar Component */}
-                <NavSidebar />
-                {/* TabView with Chat and File tabs - no overflow-hidden here */}
-                <div className="flex-1 overflow-x-auto">
-                  <TabView />
+              <div
+                className="flex h-screen w-screen border border-gray-400 bg-gray-100 relative overflow-hidden"
+                style={{ height: "100dvh" }}
+              >
+                {/* Overlay for mobile when sidebar is open */}
+                {isSidebarOpen && (
+                  <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                )}
+
+                {/* Navigation Sidebar - now responsive */}
+                <div
+                  className={`
+                    fixed z-50 h-full transition-transform duration-300 ease-in-out will-change-transform
+                    ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+                    md:relative md:translate-x-0
+                  `}
+                >
+                  <NavSidebar onClose={() => setIsSidebarOpen(false)} />
+                </div>
+
+                {/* TabView with toggle button */}
+                <div className="flex-1 flex flex-col min-h-0">
+                  <TabView
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                  />
                 </div>
               </div>
             </MessageProvider>
