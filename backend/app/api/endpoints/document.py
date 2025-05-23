@@ -157,46 +157,51 @@ async def process_document(file_path: Path, filename: str):
             chunk_size=1024,
             chunk_overlap=20,
         )
-        nodes = splitter.get_nodes_from_documents(documents)
-
         for doc in documents:
             doc.metadata["filename"] = filename
+
+        nodes = splitter.get_nodes_from_documents(documents)
+
         logger.info(
             "Loaded %d documents from %s",
             len(documents),
             filename
         )
 
-        storage_context = StorageContext.from_defaults(
-            property_graph_store=get_graph_store(),
-            vector_store=get_vector_store()
-        )
-
-        qa_extractor = QuestionsAnsweredExtractor(
-            questions=3,
-            prompt_template=QUESTION_GEN_TEMPLATE,
-            embedding_only=False
-        )
         # KG extractor depends on qa extractor.
         # We create question entities.
         kg_extractor = GraphRAGExtractor(
             parse_fn=parse_fn,
         )
-
-        index = await run_in_threadpool(
-            PropertyGraphIndex,
-            nodes=nodes,
-            kg_extractors=[qa_extractor, kg_extractor],
-            storage_context=storage_context,
-            property_graph_store=get_graph_store(),
-            show_progress=True,
-            use_async=False,
+        qa_extractor = QuestionsAnsweredExtractor(
+            questions=3,
+            prompt_template=QUESTION_GEN_TEMPLATE,
+            embedding_only=False
         )
 
-        logger.info(index.property_graph_store.get_triplets())
+        batch_size: int = settings.batch_size
+        for idx in range(0, len(nodes), batch_size):
+            storage_context = StorageContext.from_defaults(
+                property_graph_store=get_graph_store(),
+                vector_store=get_vector_store()
+            )
 
-        # Rebuild communities and update the shared db store.
-        index.property_graph_store.build_communities()
+            node_batch = nodes[idx:idx + batch_size]
+            graph_index = await run_in_threadpool(
+                PropertyGraphIndex,
+                nodes=node_batch,
+                kg_extractors=[
+                    qa_extractor,
+                    kg_extractor
+                ],
+                storage_context=storage_context,
+                property_graph_store=get_graph_store(),
+                show_progress=True,
+                use_async=False,
+            )
+
+            if (idx+batch_size >= len(nodes)):
+                graph_index.property_graph_store.build_communities()
 
         s3_client = get_s3_client()
         s3_client.upload_files_to_directory(pages, doc_uuid)

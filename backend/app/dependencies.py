@@ -13,7 +13,6 @@ from llama_index.core import Settings
 from app.config import settings
 
 
-@lru_cache
 def get_neo4j_driver():
     """Get or create a Neo4j driver."""
     try:
@@ -30,7 +29,6 @@ def get_neo4j_driver():
         raise ConnectionError(f"Failed to connect to Neo4j: {e}")
 
 
-@lru_cache
 def get_graph_store() -> GraphRAGStore:
     store = GraphRAGStore(
         username=settings.neo4j_username,
@@ -40,7 +38,6 @@ def get_graph_store() -> GraphRAGStore:
     return store
 
 
-@lru_cache
 def get_vector_store():
     """Get or create a Neo4j vector store."""
     driver = get_neo4j_driver()
@@ -101,7 +98,6 @@ RETURN ID(nodes[0]) + "[SPLIT]"+ apoc.text.join(text_mapping, '|') +
 """
 
 
-@lru_cache
 def get_local_engine(top_k: int):
     driver = get_neo4j_driver()
 

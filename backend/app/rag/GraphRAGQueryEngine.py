@@ -16,6 +16,19 @@ from .GraphRagStore import GraphRAGStore
 import re
 
 
+def parse_numbered(text: str) -> list[str]:
+    # Pattern: digit(s) followed by period and space, capturing the questions
+    pattern = r'\d+\.\s+'
+    # Split the text using the pattern
+    elements = re.split(pattern, text)
+
+    # Remove any empty strings from the beginning if the text starts with a number
+    if elements and not elements[0]:
+        elements.pop(0)
+
+    return elements
+
+
 class GraphRAGQueryEngine(CustomQueryEngine):
     graph_store: GraphRAGStore
     index: VectorStoreIndex
@@ -74,9 +87,98 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             yield tok
         yield ChatResponse(message=ChatMessage(), delta="[FINALEND]")
 
-    async def aresponse_generator(self, query_str: str, community_summaries) -> AsyncGenerator:
-        community_answers = []
+    def stream_entity_extraction(self, query_str: str, max_entities: int = 5) -> Generator:
 
+        prompt = f"""
+        -Goal-
+        Given a text query, extract up to {max_entities} entities relating to the query.
+        An entity is a person, place, thing, object, or concept that can be used to index a semantic database.
+
+        -What to Extract-
+        - Named persons (people, characters, roles)
+        - Named places (cities, buildings, locations)
+        - Named organizations (companies, institutions)
+        - Objects and items (products, tools, vehicles, etc.)
+        - Concepts and topics (ideas, subjects, activities)
+        - Events and occasions
+        - Abstract entities (emotions, qualities, processes)
+
+        -Critical Instructions-
+        - Extract ONLY what is explicitly mentioned in the query
+        - Do NOT add information, details, or assumptions not present in the original text
+        - Do NOT resolve ambiguity by adding context
+        - Use the EXACT form/spelling as it appears in the query
+        - Include both named entities AND important nouns/objects
+
+        -Steps-
+        1. Identify all relevant entities including:
+           - Proper nouns (John, Apple, Chicago)
+           - Important common nouns (car, book, meeting, strategy)
+           - Key concepts and topics mentioned
+
+        2. For each entity:
+           - Extract exactly as written in the query
+           - Include singular/plural as given
+           - Don't modify or expand the term
+
+        -Output Format-
+        1. <entity 1>
+        2. <entity 2>
+        ...
+        {max_entities}. <entity {max_entities}>
+
+        -Examples-
+        Query: "When Tesla's Model S battery degrades, how do lithium-ion cells' thermal runaway risks compare to solid-state batteries being developed by QuantumScape and Toyota's research division?"
+        1. Tesla
+        2. Model S
+        3. battery
+        4. lithium-ion cells
+        5. thermal runaway
+        6. risks
+        7. solid-state batteries
+        8. QuantumScape
+        9. Toyota
+        10. research division
+
+        Query: "Why did the Berlin Wall fall in 1989 during Gorbachev's presidency?"
+        1. Berlin Wall
+        2. 1989
+        3. Gorbachev
+        4. presidency
+
+        Query: "What are the side effects of metformin for Type 2 diabetes patients with kidney disease?"
+        1. side effects
+        2. metformin
+        3. Type 2 diabetes
+        4. patients
+        5. kidney disease
+
+        Extract entities now. Do not provide explanations or follow-up questions.
+        Think step-by-step, providing the answers after a newline.
+        """
+        messages = [
+            ChatMessage(role="system", content=prompt),
+            ChatMessage(
+                role="user",
+                content=query_str,
+            ),
+        ]
+        response = self._llm.stream_chat(messages)
+        return response
+
+    async def aresponse_generator(self, query_str: str, community_summaries) -> AsyncGenerator:
+        entity_generator = self.stream_entity_extraction(query_str)
+        entities = []
+
+        yield ChatResponse(message=ChatMessage(), delta="[ENTITYSTART]")
+        for tok in entity_generator:
+            logger.info("TOKEN IS %s", tok)
+            yield tok
+            entities.append(tok)
+        yield ChatResponse(message=ChatMessage(), delta="[ENTITYEND]")
+
+        logger.info("ENTITES=%s", entities)
+        community_answers = []
         for community_summary in community_summaries:
             summary_generator = self.stream_answer_from_summary(
                 community_summary,

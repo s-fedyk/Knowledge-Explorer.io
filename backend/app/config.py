@@ -43,5 +43,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
     aws_region: str = os.getenv("AWS_REGION", "us-east-2")
 
+    batch_size: int = int(os.getenv("BATCH_SIZE", 50))
+
 
 settings = Settings()

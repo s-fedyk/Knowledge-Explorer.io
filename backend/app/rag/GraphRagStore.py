@@ -8,6 +8,7 @@ from llama_index.core.schema import TextNode
 from llama_index.core.vector_stores.utils import node_to_metadata_dict
 from llama_index.core.graph_stores.types import EntityNode, LabelledNode, Relation
 from pydantic.v1 import parse
+from app.config import settings
 from app.logger import logger
 
 PROJECT_GRAPH = """
@@ -297,8 +298,11 @@ class GraphRAGStore(Neo4jPropertyGraphStore):
 
         logger.info("Getting chunks...")
         chunks = self.structured_query(CHUNK_QUERY, {})
-        logger.info("Chunks=%s", chunks)
-        self.generate_questions(chunks)
+
+        batch_size: int = settings.batch_size
+        for idx in range(0, len(chunks), batch_size):
+            chunk_batch = chunks[idx:idx+batch_size]
+            self.generate_questions(chunk_batch)
 
     def build_communities(self):
         """Builds communities from the graph and summarizes them."""
