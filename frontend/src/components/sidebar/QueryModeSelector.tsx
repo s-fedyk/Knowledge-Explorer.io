@@ -25,6 +25,36 @@ function QueryModeSelector() {
     },
   ];
 
+  // Function to highlight specific words with colors and drop shadows
+  const highlightWords = (text) => {
+    // Words to highlight with orange (thematic)
+    const orangeWords = ["thematic", "understanding"];
+    // Words to highlight with purple (concept, person, place, thing)
+    const purpleWords = ["concept", "person", "place", "thing"];
+
+    let highlightedText = text;
+
+    // Apply orange highlighting
+    orangeWords.forEach((word) => {
+      const regex = new RegExp(`\\b${word}\\b`, "gi");
+      highlightedText = highlightedText.replace(
+        regex,
+        `<span class="text-amber-500 font-semibold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">${word}</span>`,
+      );
+    });
+
+    // Apply purple highlighting
+    purpleWords.forEach((word) => {
+      const regex = new RegExp(`\\b${word}\\b`, "gi");
+      highlightedText = highlightedText.replace(
+        regex,
+        `<span class="text-purple-500 font-semibold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">${word}</span>`,
+      );
+    });
+
+    return { __html: highlightedText };
+  };
+
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
     // Show tooltip after clicking
@@ -49,7 +79,6 @@ function QueryModeSelector() {
         setShowTooltip(false);
       }
     };
-
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showTooltip]);
@@ -60,7 +89,6 @@ function QueryModeSelector() {
       <div className="flex justify-center items-center p-2 border-b border-gray-400">
         <h2 className="p-2 text-black text-lg ">Knowledge🤖Explorer</h2>
       </div>
-
       {/* Content area with scrolling */}
       <div className="flex-1 overflow-y-auto p-4">
         {/* Query Type Dropdown */}
@@ -72,7 +100,6 @@ function QueryModeSelector() {
             <span>{queryMode ? queryMode : "Select query type"}</span>
             {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </div>
-
           {/* Tooltip */}
           {showTooltip && (
             <div className="absolute top-full left-0 mt-2 p-3 bg-gray-800 text-white text-sm rounded-lg shadow-lg z-20 max-w-xs">
@@ -84,7 +111,6 @@ function QueryModeSelector() {
               </div>
             </div>
           )}
-
           {/* Dropdown Menu */}
           {isOpen && (
             <div className="absolute left-0 right-0 mt-1 border border-gray-400 bg-white z-10 shadow-lg">
@@ -100,9 +126,10 @@ function QueryModeSelector() {
                     <div className="font-medium text-gray-900 mb-1">
                       {mode.name}
                     </div>
-                    <div className="text-sm text-gray-400">
-                      {mode.description}
-                    </div>
+                    <div
+                      className="text-sm text-gray-400"
+                      dangerouslySetInnerHTML={highlightWords(mode.description)}
+                    />
                   </div>
                 </div>
               ))}
