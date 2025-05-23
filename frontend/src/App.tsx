@@ -29,13 +29,15 @@ function App() {
                 className="flex h-screen w-screen border border-gray-400 bg-gray-100"
                 style={{ height: "100dvh" }}
               >
-                {/* Overlay for mobile when sidebar is open */}
-                {isSidebarOpen && (
-                  <div
-                    className="fixed inset-0 bg-opacity-50 z-40 md:hidden"
-                    onClick={() => setIsSidebarOpen(false)}
-                  />
-                )}
+                {/* Overlay for mobile when sidebar is open - blur backdrop with transition */}
+                <div
+                  className={`fixed inset-0 z-40 md:hidden transition-all duration-300 ease-in-out ${
+                    isSidebarOpen
+                      ? "backdrop-blur-sm opacity-100 visible"
+                      : "backdrop-blur-none opacity-0 invisible"
+                  }`}
+                  onClick={() => setIsSidebarOpen(false)}
+                />
 
                 {/* Navigation Sidebar - now responsive */}
                 <div
