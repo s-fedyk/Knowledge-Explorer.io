@@ -87,7 +87,7 @@ function QueryModeSelector() {
     <div className="flex flex-col h-full text-black">
       {/* Header stays fixed */}
       <div className="flex justify-center items-center p-2 border-b border-gray-400">
-        <h2 className="p-2 text-black text-lg ">Knowledge🤖Explorer</h2>
+        <h2 className="p-2 text-black text-lg ">🤖Explorer🤖</h2>
       </div>
       {/* Content area with scrolling */}
       <div className="flex-1 overflow-y-auto p-4">

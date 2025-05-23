@@ -6,6 +6,11 @@ const MessageContext = createContext();
 
 const SECTION_TYPES = {
   TEXT: "text",
+  ENTITY: {
+    type: "entity",
+    startToken: "[ENTITYSTART]",
+    endToken: "[ENTITYEND]",
+  },
   SUMMARY: {
     type: "summary",
     startToken: "[SUMSTART]",

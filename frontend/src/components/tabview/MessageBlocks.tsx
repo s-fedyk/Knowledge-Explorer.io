@@ -81,6 +81,40 @@ export const SummaryBlock = ({ content, complete }) => {
     </div>
   );
 };
+export const EntityBlock = ({ content, complete }) => {
+  return (
+    <div className="bg-purple-50 border-l-4 border-purple-500 p-3 rounded my-2">
+      <div className="flex items-center mb-1">
+        <svg
+          className="w-5 h-5 text-purple-500 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
+        </svg>
+        <span className="font-medium text-purple-700">Entity Extraction</span>
+        {!complete && (
+          <span className="ml-2 text-purple-500">
+            <span className="animate-pulse">•</span>
+          </span>
+        )}
+      </div>
+      {/* Use ReactMarkdown here */}
+      <div className="text-gray-700">
+        <Remark rehypeReactOptions={{ components: remarkComponents }}>
+          {content}
+        </Remark>
+      </div>
+    </div>
+  );
+};
 
 /**
  * FinalBlock component renders a final section (highlighted differently)
@@ -128,6 +162,10 @@ export const SectionRenderer = ({ section }) => {
     case "summary":
       return (
         <SummaryBlock content={section.content} complete={section.complete} />
+      );
+    case "entity":
+      return (
+        <EntityBlock content={section.content} oncomplete={section.complete} />
       );
     case "final":
       return (

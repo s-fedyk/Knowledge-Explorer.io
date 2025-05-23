@@ -32,6 +32,7 @@ def parse_numbered(text: str) -> list[str]:
 class GraphRAGQueryEngine(CustomQueryEngine):
     graph_store: GraphRAGStore
     index: VectorStoreIndex
+    question_index: VectorStoreIndex
     _llm: LLM = PrivateAttr(default_factory=lambda: Settings.llm)
     similarity_top_k: int = 20
 
@@ -128,7 +129,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         {max_entities}. <entity {max_entities}>
 
         -Examples-
-        Query: "When Tesla's Model S battery degrades, how do lithium-ion cells' thermal runaway risks compare to solid-state batteries being developed by QuantumScape and Toyota's research division?"
+        Query: "When Tesla's Model S battery degrades, how do lithium-ion cells' thermal runaway risks compare to solid-state batteries being developed by quantumscape and toyota's research division?"
         1. Tesla
         2. Model S
         3. battery
@@ -136,14 +137,14 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         5. thermal runaway
         6. risks
         7. solid-state batteries
-        8. QuantumScape
-        9. Toyota
+        8. quantumscape
+        9. toyota
         10. research division
 
-        Query: "Why did the Berlin Wall fall in 1989 during Gorbachev's presidency?"
+        Query: "Why did the Berlin Wall fall in 1989 during gorbachev's presidency?"
         1. Berlin Wall
         2. 1989
-        3. Gorbachev
+        3. gorbachev
         4. presidency
 
         Query: "What are the side effects of metformin for Type 2 diabetes patients with kidney disease?"
