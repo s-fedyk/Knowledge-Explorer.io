@@ -2,12 +2,11 @@ import React, { useMemo, useCallback } from "react";
 import ChatWindow from "./ChatWindow";
 import FileView from "./FileView";
 import GraphView from "./GraphView";
-import { Settings2 } from "lucide-react"; // This imports the hamburger icon
 import TabIcon from "./TabIcon";
 import Tab from "./Tab";
 import { useTabContext } from "@context/TabContext";
 import { GraphViewProvider } from "@context/GraphViewContext";
-import { Github } from "lucide-react";
+import { Github, Settings2 } from "lucide-react";
 
 const TabView = ({ onToggleSidebar }) => {
   const { tabs, activeTabId } = useTabContext();
@@ -40,27 +39,37 @@ const TabView = ({ onToggleSidebar }) => {
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden">
-      <div className="flex flex-none bg-white border-b border-gray-400 text-lg relative">
-        {/* Add menu button for mobile */}
-        <div className="md:hidden border-gray-400 border-r items-center">
+      <div className="flex bg-white border-b border-gray-400 text-lg">
+        {/* Menu button for mobile */}
+        <div className="border-gray-400 md:hidden border-r">
           <button
             onClick={onToggleSidebar}
-            className="select-none w-full h-full p-3 hover:bg-gray-100 md:hidden text-gray-500"
+            className="flex-shrink-0 p-3 w-full h-full hover:bg-gray-100 border-gray-400 text-gray-500 border-r border-gray-400"
             aria-label="Toggle sidebar"
           >
             <Settings2 size={20} />
           </button>
         </div>
-        <div className="flex overflow-x-auto pr-12 w-full">
+
+        {/* Scrollable tabs container */}
+        <div className="flex w-full overflow-x-auto h-full">
           {tabs.map((tab) => (
             <Tab key={tab.id} tab={tab} />
           ))}
         </div>
-        {/* ... existing GitHub link ... */}
+
+        {/* Fixed GitHub icon */}
+        <a
+          href={GIT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-shrink-0 flex items-center text-gray-400 px-3 cursor-pointer bg-white border-l border-gray-400 hover:bg-gray-100 hover:text-black transition-colors duration-100"
+        >
+          <Github size={30} />
+        </a>
       </div>
-      <div className="flex-1 overflow-hidden bg-gray-100 relative">
-        {tabsContent}
-      </div>
+
+      <div className="flex-1 overflow-auto bg-gray-100">{tabsContent}</div>
     </div>
   );
 };

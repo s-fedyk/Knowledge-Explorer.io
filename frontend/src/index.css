@@ -5,12 +5,20 @@
 
 :root {
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
+  line-height: 1.5;
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer base {
   html {
-    height: 100vh; /* standard definition (as fallback) */
-    height: 100dvh; /* dynamic vh will make the trick on iOS */
+    height: 100vh;
+    height: 100dvh;
     font-family: "JetBrainsMono", monospace;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -25,7 +33,70 @@
   font-display: swap;
 }
 
-/* force the viewer to size itself to its parent */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 320px;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Logo animations */
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+/* Component styles */
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* Photo viewer styles */
+.pg-viewer-wrapper img.photo,
+.pg-viewer img.photo,
+.photo-viewer-container img.photo {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
+}
+
 .photo-viewer-container {
   width: 100% !important;
   height: 100% !important;
@@ -36,39 +107,13 @@
   height: auto !important;
 }
 
-:root {
-  line-height: 1.5;
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  margin: 0;
-  /* Remove these problematic styles */
-  /* display: flex; */
-  /* place-items: center; */
-  min-width: 320px;
-  min-height: 100vh;
-  height: 100vh; /* standard definition (as fallback) */
-  height: 100dvh; /* dynamic vh will make the trick on iOS */
-}
-
-/* Ensure #root takes full height */
-#root {
-  height: 100%;
-  width: 100%;
-}
-
+/* Typography */
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
+/* Button styles */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -85,14 +130,29 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Input styles */
+input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Utility styles */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Light mode overrides */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
     background-color: #ffffff;
   }
+
   a:hover {
     color: #747bff;
   }
+
   button {
     background-color: #f9f9f9;
   }

@@ -26,7 +26,7 @@ function App() {
           <FileSystemProvider>
             <MessageProvider>
               <div
-                className="flex h-screen w-screen border border-gray-400 bg-gray-100 relative overflow-hidden"
+                className="flex h-screen w-screen border border-gray-400 bg-gray-100"
                 style={{ height: "100dvh" }}
               >
                 {/* Overlay for mobile when sidebar is open */}
@@ -49,7 +49,7 @@ function App() {
                 </div>
 
                 {/* TabView with toggle button */}
-                <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
                   <TabView
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                   />

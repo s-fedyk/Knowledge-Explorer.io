@@ -63,9 +63,7 @@ body {
 
 /* Prevent overscroll bounce on iOS */
 body {
-  position: fixed;
   width: 100%;
-  overscroll-behavior: none;
 }
 
 /* Ensure proper stacking context */
