@@ -1,7 +1,12 @@
 @import "tailwindcss";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@source inline("left-64");
+@source inline("bottom-0");
+@source inline("pb-28");
 
 :root {
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
@@ -128,32 +133,4 @@ button {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
-}
-
-/* Input styles */
-input {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-}
-
-/* Utility styles */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Light mode overrides */
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-
-  a:hover {
-    color: #747bff;
-  }
-
-  button {
-    background-color: #f9f9f9;
-  }
 }

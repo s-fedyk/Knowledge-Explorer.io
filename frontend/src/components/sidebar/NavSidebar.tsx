@@ -11,7 +11,7 @@ import { FileSystemProvider } from "@context/FileSystemContext";
  * @param {Object} props.initialDirectory - Initial directory structure
  * @param {string|null} props.initialActiveFile - Initial active file
  */
-function NavSidebar({ onClose }) {
+function NavSidebar() {
   return (
     <div className="w-64 h-full bg-white shadow-md flex flex-col border-r border-gray-400">
       {/* Mobile close button - remove padding when hidden */}
