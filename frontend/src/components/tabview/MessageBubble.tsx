@@ -1,6 +1,6 @@
 // File: components/chat/MessageBubble.jsx
 import React from "react";
-import { SectionRenderer } from "./MessageBlocks";
+import TypedBlock from "./MessageBlocks";
 
 /**
  * MessageContent component that renders sections in order
@@ -15,15 +15,11 @@ const MessageContent = ({ message }) => {
     return <div className="whitespace-pre-wrap">{message.text}</div>;
   }
 
-  console.log(message);
-
   // For bot messages with sections, render each section in order
   return (
     <div>
       {message.sections.map((section) => (
-        <React.Fragment key={section.id}>
-          <SectionRenderer section={section} />
-        </React.Fragment>
+        <TypedBlock section={section} />
       ))}
     </div>
   );

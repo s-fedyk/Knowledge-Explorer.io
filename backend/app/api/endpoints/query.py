@@ -206,16 +206,14 @@ async def event_stream(response_gen) -> AsyncGenerator:
     logger.info(response_gen)
     try:
         for response in response_gen:
-            token = str(response.delta)
-            json_token = json.dumps(token)
-            logger.info(f"Token is {json_token}")
+            json_token = json.dumps(response.delta)
             yield f"data: {json_token}\n\n"
             await asyncio.sleep(0.01)
         # Signal completion
-        yield "data: [DONE]\n\n"
+        yield "[DONE]\n\n"
     except Exception as e:
-        yield f"data: Error: {str(e)}\n\n"
-        yield "data: [DONE]\n\n"
+        yield f"Error: {str(e)}\n\n"
+        yield "[DONE]\n\n"
 
 
 @router.get("/stream_job/{job_id}")

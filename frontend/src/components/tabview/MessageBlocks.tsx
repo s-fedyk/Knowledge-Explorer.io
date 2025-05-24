@@ -1,6 +1,7 @@
 // File: components/chat/MessageBlocks.jsx
 import React, { useState, useEffect } from "react";
 import { Remark } from "react-remark";
+import { Client } from "@api/query.ts";
 
 /**
  * PulsingIndicator component with enhanced completion animation
@@ -38,10 +39,6 @@ const PulsingIndicator = ({ complete, color }) => {
     </span>
   );
 };
-
-/**
- * SummaryBlock component renders a summary section
- */
 
 const remarkComponents = {
   // Enhance list rendering
@@ -85,134 +82,134 @@ const remarkComponents = {
   ),
 };
 
-export const SummaryBlock = ({ content, complete }) => {
-  return (
-    <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded my-2">
-      <div className="flex items-center mb-1">
-        <svg
-          className="w-5 h-5 text-amber-500 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          ></path>
-        </svg>
-        <span className="font-medium text-amber-700">Community Summary</span>
-        {!complete && (
-          <PulsingIndicator complete={complete} color="text-amber-500" />
-        )}
-      </div>
-      {/* Use ReactMarkdown here */}
-      <div className="text-gray-700">
-        <Remark rehypeReactOptions={{ components: remarkComponents }}>
-          {content}
-        </Remark>
-      </div>
-    </div>
-  );
-};
-
-export const EntityBlock = ({ content, complete }) => {
-  return (
-    <div className="bg-purple-50 border-l-4 border-purple-500 p-3 rounded my-2">
-      <div className="flex items-center mb-1">
-        <svg
-          className="w-5 h-5 text-purple-500 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          ></path>
-        </svg>
-        <span className="font-medium text-purple-700">Entity Extraction</span>
-        {!complete && (
-          <PulsingIndicator complete={complete} color="text-purple-500" />
-        )}
-      </div>
-      {/* Use ReactMarkdown here */}
-      <div className="text-gray-700">
-        <Remark rehypeReactOptions={{ components: remarkComponents }}>
-          {content}
-        </Remark>
-      </div>
-    </div>
-  );
-};
-
 /**
- * FinalBlock component renders a final section (highlighted differently)
+ * TypedBlock component handles different block types with appropriate styling
  */
-export const FinalBlock = ({ content, complete }) => {
-  return (
-    <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded my-2">
-      <div className="flex items-center mb-1">
-        <svg
-          className="w-5 h-5 text-blue-500 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M5 13l4 4L19 7"
-          ></path>
-        </svg>
-        <span className="font-medium text-blue-700">Final Answer</span>
-        {!complete && (
-          <PulsingIndicator complete={complete} color="text-blue-500" />
-        )}
-      </div>
-      {/* Use ReactMarkdown here */}
+
+const TypedBlock = ({ section }) => {
+  const [content, setContent] = useState("");
+  const [complete, setComplete] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    let cleanup: () => void;
+
+    // Kick off the stream
+    Client.streamJob(
+      section.id,
+      (token) => {
+        if (!isCancelled) {
+          setContent((prev) => prev + token);
+        }
+      },
+      () => {
+        if (!isCancelled) {
+          setComplete(true);
+        }
+      },
+    ).then((fn) => {
+      cleanup = fn;
+    });
+
+    // Cleanup on unmount or before next effect
+    return () => {
+      isCancelled = true; // stop any further state updates
+      if (cleanup) cleanup(); // close the EventSource
+    };
+  }, [section.id]);
+
+  const typeConfigs = {
+    summary: {
+      bgColor: "bg-amber-50",
+      borderColor: "border-amber-500",
+      textColor: "text-amber-700",
+      iconColor: "text-amber-500",
+      pulseColor: "text-amber-500",
+      title: "Community Summary",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      ),
+    },
+    entity: {
+      bgColor: "bg-purple-50",
+      borderColor: "border-purple-500",
+      textColor: "text-purple-700",
+      iconColor: "text-purple-500",
+      pulseColor: "text-purple-500",
+      title: "Entity Extraction",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      ),
+    },
+    final: {
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-500",
+      textColor: "text-blue-700",
+      iconColor: "text-blue-500",
+      pulseColor: "text-blue-500",
+      title: "Final Answer",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M5 13l4 4L19 7"
+        />
+      ),
+    },
+  };
+
+  const config = typeConfigs[section.type];
+
+  if (!config) {
+    // Fallback for unknown types
+    return (
       <div className="text-gray-700">
         <Remark rehypeReactOptions={{ components: remarkComponents }}>
           {content}
         </Remark>
       </div>
-    </div>
-  );
-};
-
-/**
- * SectionRenderer component handles rendering different section types
- */
-export const SectionRenderer = ({ section }) => {
-  switch (section.type) {
-    case "summary":
-      return (
-        <SummaryBlock content={section.content} complete={section.complete} />
-      );
-    case "entity":
-      return (
-        <EntityBlock content={section.content} complete={section.complete} />
-      );
-    case "final":
-      return (
-        <FinalBlock content={section.content} complete={section.complete} />
-      );
-    case "text":
-    default:
-      // Use ReactMarkdown here
-      return (
-        <div className="text-gray-700">
-          <Remark rehypeReactOptions={{ components: remarkComponents }}>
-            {section.content}
-          </Remark>
-        </div>
-      );
+    );
   }
+
+  return (
+    <div
+      className={`${config.bgColor} border-l-4 ${config.borderColor} p-3 rounded my-2`}
+    >
+      <div className="flex items-center mb-1">
+        <svg
+          className={`w-5 h-5 ${config.iconColor} mr-2`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {config.icon}
+        </svg>
+        <span className={`font-medium ${config.textColor}`}>
+          {config.title}
+        </span>
+        {!complete && (
+          <PulsingIndicator complete={complete} color={config.pulseColor} />
+        )}
+      </div>
+      <div className="text-gray-700">
+        <Remark rehypeReactOptions={{ components: remarkComponents }}>
+          {content}
+        </Remark>
+      </div>
+    </div>
+  );
 };
+
+export default TypedBlock;

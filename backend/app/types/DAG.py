@@ -77,12 +77,11 @@ async def store_summaries(
 ) -> list[tuple[str, list[str]]]:
 
     jobs_collection: JobsCollection = context.jobs_collection
-
     assert (context.query_id is not None)
     query_id: str = context.query_id
-
     assert (context.query is not None)
     query: str = context.query
+    logger.info("Storing summaries=%s", summaries)
 
     jobs = []
     for summary in summaries:
@@ -106,13 +105,14 @@ async def store_summaries(
     ]
 
 
-# Query the database for summarize
+# TODO fix sources.
 async def gather_summaries(
         query: str,
         context: GlobalQueryContext
 ):
     engine: GraphRAGQueryEngine = context.engine
-    return await engine.aget_summaries(query)
+    summaries, sources = await engine.aget_summaries(query)
+    return summaries
 
 
 async def get_query(

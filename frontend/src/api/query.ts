@@ -22,9 +22,129 @@ export const API_ENDPOINTS = {
   SESSION: `${API_BASE_URL}/api/${API_VERSION}/session`,
   SOURCES: `${API_BASE_URL}/api/${API_VERSION}/sources`,
   DOCUMENTS: `${API_BASE_URL}/api/${API_VERSION}/documents`,
+  STEP: `${API_BASE_URL}/api/${API_VERSION}/step`,
+  STREAM_JOB: `${API_BASE_URL}/api/${API_VERSION}/stream_job`,
 };
 
+export interface StepRequest {
+  query_id: string;
+}
+
+export interface StepResponse {
+  jobs: Array<[string, string[]]>;
+}
+
+export interface JobStreamParams {
+  job_id: string;
+}
+
 export class APIClient {
+  public async step(queryId: string): Promise<StepResponse> {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.STEP}/${queryId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw this.createApiError(errorData, response.status);
+      }
+
+      return (await response.json()) as StepResponse;
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      throw this.createApiError(
+        {
+          error: "network_error",
+          message: `Failed to execute step: ${(error as Error).message}`,
+        },
+        500,
+      );
+    }
+  }
+
+  /**
+   * Stream job results using Server-Sent Events
+   * @param jobId The job ID to stream results for
+   * @param onToken Callback function that receives tokens as they arrive
+   * @param onComplete Callback function called when streaming is complete
+   * @param onError Callback function called when an error occurs
+   * @returns A cleanup function to close the stream
+   */
+  public async streamJob(
+    jobId: string,
+    onToken: (token: string) => void,
+    onComplete?: () => void,
+    onError?: (error: ApiError) => void,
+  ): Promise<() => void> {
+    console.log("beginning stream");
+    try {
+      const streamUrl = `${API_ENDPOINTS.STREAM_JOB}/${jobId}`;
+      const eventSource = new EventSource(streamUrl, {
+        withCredentials: false,
+      });
+
+      // Handle incoming messages (tokens)
+      eventSource.onmessage = (event) => {
+        const chunk = JSON.parse(event.data);
+        console.log("message is ", chunk);
+
+        if (chunk === "[DONE]") {
+          // Stream is complete
+          eventSource.close();
+          if (onComplete) onComplete();
+          return;
+        }
+
+        try {
+          onToken(token);
+        } catch (parseError) {
+          // If parsing fails, pass the raw data
+          onToken(chunk);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        eventSource.close();
+        if (onError) {
+          onError(
+            this.createApiError(
+              {
+                error: "stream_error",
+                message: "Error in job stream connection",
+              },
+              500,
+            ),
+          );
+        }
+      };
+
+      // Return cleanup function
+      return () => {
+        eventSource.close();
+      };
+    } catch (error) {
+      if (onError) {
+        onError(
+          this.createApiError(
+            {
+              error: "network_error",
+              message: `Failed to establish job streaming connection: ${(error as Error).message}`,
+            },
+            500,
+          ),
+        );
+      }
+      // Return no-op cleanup function
+      return () => {};
+    }
+  }
+
   /**
    * Retrieves a list of documents, optionally filtered by user_id
    * @param params Optional parameters including user_id
