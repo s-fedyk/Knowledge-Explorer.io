@@ -60,6 +60,7 @@ class JobsCollection(MongoDBBase):
             "status": Status.PENDING,
             "created_at": now,
             "updated_at": now,
+            "result": None,
             "started_at": None,
             "completed_at": None
         }
@@ -157,7 +158,7 @@ class JobsCollection(MongoDBBase):
         return None
 
     @log_db_operation
-    async def store_job_result(self, job_id: str, result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def store_job_result(self, job_id: str, result: Any) -> Optional[Dict[str, Any]]:
         """Store the result of a completed job"""
         return await self.update_job_status(job_id, Status.COMPLETED, result=result)
 

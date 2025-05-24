@@ -6,10 +6,11 @@ import json
 import asyncio
 
 from pydantic import BaseModel
+from app.client.db import jobs_collection
 from app.dependencies import get_engine
 from app.logger import logger
 from app.client.mongo_client import get_jobs_collection, get_queries_collection
-from app.types.DAG import get_context, get_stage
+from app.types.DAG import UncompletedJobsException, get_context, get_stage, get_stages
 from app.types.stream import get_job_generator
 
 # Configure logging
@@ -24,6 +25,7 @@ class QueryRequest(BaseModel):
 
 class QueryResponse(BaseModel):
     query_id: str
+    stages: int
 
 
 @router.get("/sources/{query_id}")
@@ -102,13 +104,17 @@ async def create_query(request: QueryRequest):
             request.query
         )
 
+        number_of_stages = len(get_stages(request.mode))
         return {
-            "query_id": query_id
+            "query_id": query_id,
+            "stages": number_of_stages
         }
     except Exception as e:
         logger.exception("Error creating query")
         raise HTTPException(
-            status_code=500, detail=f"Query creation error: {str(e)}")
+            status_code=500,
+            detail=f"Query creation error: {str(e)}"
+        )
 
 
 class StepRequest(BaseModel):
@@ -119,8 +125,8 @@ class StepResponse(BaseModel):
     jobs: list[tuple[str, list[str]]]
 
 
-@router.post("/step/{query_id}", response_model=StepResponse)
-async def step(query_id: str):
+@router.post("/step/{query_id}/{step}", response_model=StepResponse)
+async def step(query_id: str, step: int):
     """
     Do everything in the stage.
     """
@@ -130,23 +136,39 @@ async def step(query_id: str):
             query_id
         )
 
-        mode: str = query_data["mode"]
-        stage_idx: int = query_data["stage"]
+        if (not query_data):
+            raise HTTPException(
+                status_code=404,
+                detail="Query not found."
+            )
 
+        mode: str = query_data["mode"]
         stage = get_stage(
             mode,
-            stage_idx
+            step,
         )
+
         context = await get_context(mode)
         jobs = await stage.execute(query_id, context)
+        logger.info("Resulting jobs=[%s]", jobs)
 
         return {
             "jobs": jobs
         }
+
+    except UncompletedJobsException as e:
+        logger.exception("Uncompleted jobs exist")
+        raise HTTPException(
+            status_code=202,
+            detail="Jobs are still in progress. Please poll again later.",
+            headers={"Retry-After": "0.1"}
+        )
     except Exception as e:
         logger.exception("Step error=%s", e)
         raise HTTPException(
-            status_code=500, detail=f"Step Error: {str(e)}")
+            status_code=500,
+            detail=f"Step Error: {str(e)}"
+        )
 
 
 class QueryStatus(BaseModel):
@@ -199,21 +221,37 @@ async def stream_query_response(query_id: str):
             status_code=500, detail=f"Streaming error: {str(e)}")
 
 
-async def event_stream(response_gen) -> AsyncGenerator:
+async def event_stream(response_gen: Generator, job_id: str) -> AsyncGenerator:
     """
     Convert the LLM streaming generator to a proper FastAPI StreamingResponse format.
     """
     logger.info(response_gen)
+    jobs_collection = await get_jobs_collection()
     try:
+        result: str = ""
         for response in response_gen:
             json_token = json.dumps(response.delta)
+            result += response.delta
             yield f"data: {json_token}\n\n"
             await asyncio.sleep(0.01)
         # Signal completion
-        yield "[DONE]\n\n"
+        yield "data: [DONE]\n\n"
+
+        logger.info(
+            "Storing result=%s",
+            result
+        )
+        await jobs_collection.store_job_result(
+            job_id,
+            result
+        )
     except Exception as e:
         yield f"Error: {str(e)}\n\n"
-        yield "[DONE]\n\n"
+        yield "data: [DONE]\n\n"
+        await jobs_collection.mark_job_failed(
+            job_id,
+            str(e)
+        )
 
 
 @router.get("/stream_job/{job_id}")
@@ -223,11 +261,10 @@ async def stream_job(
     """
     Connect to a streaming endpoint using the query ID
     """
-    logger.info(f"Request to connect to stream for query: {job_id}")
+    logger.info(f"Request to execute job: {job_id}")
     jobs_collection = await get_jobs_collection()
 
     job = await jobs_collection.get_job(job_id)
-
     if not job:
         raise HTTPException(
             status_code=404,
@@ -235,14 +272,14 @@ async def stream_job(
         )
 
     logger.info(
-        "Retrieved job for streaming =%s",
+        "Retrieved for streaming=[%s]",
         job
     )
     job_type: str = job["job_type"]
     job_parameters = job["params"].values()
 
     logger.info(
-        "parameters are %s",
+        "params=[%s]",
         job_parameters
     )
 
@@ -254,7 +291,10 @@ async def stream_job(
     try:
         logger.info(f"Executing job {job_id}: {job_type}")
         return StreamingResponse(
-            content=event_stream(response_gen),
+            content=event_stream(
+                response_gen,
+                job_id
+            ),
             media_type='text/event-stream',
             headers={
                 "Cache-Control": "no-cache",
@@ -265,33 +305,6 @@ async def stream_job(
         logger.exception(f"Error streaming response for query {job_id}")
         # Mark query as failed
         raise HTTPException(
-            status_code=500, detail=f"Streaming error: {str(e)}")
-
-
-@router.get("/query/{query_id}", response_model=QueryStatus)
-async def get_query_status(query_id: str):
-    """
-    Get the status of a query
-    """
-    if query_id not in active_queries:
-        raise HTTPException(
-            status_code=404, detail="Query not found or expired")
-
-    query_data = active_queries[query_id]
-    return {
-        "status": query_data["status"],
-        "query_id": query_id
-    }
-
-
-@router.delete("/query/{query_id}")
-async def delete_query(query_id: str):
-    """
-    Manually delete a query when client is done
-    """
-    if query_id not in active_queries:
-        raise HTTPException(
-            status_code=404, detail="Query not found or expired")
-
-    del active_queries[query_id]
-    return {"status": "deleted", "query_id": query_id}
+            status_code=500,
+            detail=f"Streaming error: {str(e)}"
+        )

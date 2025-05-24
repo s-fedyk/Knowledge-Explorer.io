@@ -1,31 +1,10 @@
-import React, { createContext, useContext, useState, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { Client } from "@api/query.ts";
-import { useTabContext } from "./TabContext";
 
 const MessageContext = createContext();
 
-const SECTION_TYPES = {
-  TEXT: "text",
-  ENTITY: {
-    type: "entity",
-    startToken: "[ENTITYSTART]",
-    endToken: "[ENTITYEND]",
-  },
-  SUMMARY: {
-    type: "summary",
-    startToken: "[SUMSTART]",
-    endToken: "[SUMEND]",
-  },
-  FINAL: {
-    type: "final",
-    startToken: "[FINALSTART]",
-    endToken: "[FINALEND]",
-  },
-};
-
 /**
- * Custom hook to use the MessageContext
- * @returns {Object} MessageContext value
+ * Custom hook to consume the MessageContext
  */
 export const useMessageContext = () => {
   const context = useContext(MessageContext);
@@ -36,117 +15,132 @@ export const useMessageContext = () => {
 };
 
 /**
- * Provider component for MessageContext
- * @param {Object} props - Component props
- * @param {React.ReactNode} props.children - Child components
+ * Provider component for streaming multi-stage jobs
  */
 export const MessageProvider = ({ children }) => {
+  // message history
   const [messages, setMessages] = useState([]);
   const [queryMode, setQueryMode] = useState("global");
-  const { addGraphTab } = useTabContext();
-  const cancelStreamRef = useRef(null);
 
-  const streamingStateRef = useRef({
-    currentSectionType: SECTION_TYPES.TEXT,
-    currentSectionId: null,
-    currentSectionText: "",
-    currentTextBuffer: "",
-    sections: [],
-  });
+  // streaming state
+  const [queryID, setQueryID] = useState(null);
+  const [totalStages, setTotalStages] = useState(0);
+  const [stage, setStage] = useState(0);
+  const [pending, setPending] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [jobs, setJobs] = useState([]);
 
-  const addMessage = (sender, text, sections = []) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        sender,
-        text,
-        sections,
-        timestamp: new Date(),
-      },
-    ]);
-    return new Date();
-  };
-
-  const updateMessage = (messageId, newText = null, sectionsUpdate = null) => {
-    setMessages((prev) =>
-      prev.map((message, index) => {
-        if (index === messageId) {
-          return {
-            ...message,
-            text: newText !== null ? newText : message.text,
-            sections:
-              sectionsUpdate !== null ? sectionsUpdate : message.sections,
-          };
-        }
-        return message;
-      }),
-    );
-  };
-
-  const handleSendMessage = async (userMessage, mode) => {
-    // Add user message
-    addMessage("user", userMessage);
-
-    // Add empty bot message and get its index
-    const botMessageIndex = messages.length + 1;
-    addMessage("bot", "", []);
-
-    const queryRequest = {
-      query: userMessage,
-      top_k: 5,
-      mode: mode,
-    };
-
-    const queryResponse = await Client.query(queryRequest);
-    const queryId = queryResponse.query_id;
-    if (!queryId) {
-      throw new Error("No query ID received from server");
-    }
-
-    // Step 2: Execute the step to get jobs
-    const stepResponse = await Client.step(queryId);
-    console.log("STEP RESPONSE");
-    const jobs = stepResponse.jobs;
-
+  /**
+   * Injects new sections into the last bot message
+   */
+  const onNewSections = (sections) => {
+    if (sections.length === 0) return;
     setMessages((prev) => {
-      const new_messages = [...prev];
-      const lastMessage = new_messages[new_messages.length - 1];
+      const copy = [...prev];
+      const last = copy[copy.length - 1];
+      copy[copy.length - 1] = {
+        ...last,
+        sections: [...last.sections, ...sections],
+      };
+      return copy;
+    });
+  };
 
-      const allNewSections = jobs.flatMap(([sectionType, jobIDs]) =>
-        jobIDs.map((jobId) => ({
-          id: jobId,
-          type: sectionType,
+  /**
+   * Called by each Section component when its job finishes
+   */
+  const markDone = () => {
+    console.log("job marked as DONE, ", pending);
+    setPending((p) => p - 1);
+  };
+
+  /**
+   * Kick off the next stage whenever pending hits zero
+   */
+  useEffect(() => {
+    console.log("Trying next stage", stage, loading, pending);
+    if (!loading && pending === 0 && stage > 0 && stage <= totalStages) {
+      setStage(stage + 1);
+    }
+  }, [loading, pending, stage, totalStages]);
+
+  /**
+   * Fetch jobs for a given stage
+   */
+  useEffect(() => {
+    if (
+      loading ||
+      !queryID ||
+      stage === 0 ||
+      stage > totalStages ||
+      pending > 0
+    )
+      return;
+
+    setLoading(true);
+    (async () => {
+      const { jobs } = await Client.step(queryID, stage);
+      const sections = jobs.flatMap(([type, ids]) =>
+        ids.map((id) => ({
+          id,
+          type,
           content: "",
-          status: "pending",
+          onComplete: () => {
+            markDone();
+          },
         })),
       );
-
-      new_messages[new_messages.length - 1] = {
-        ...lastMessage,
-        sections: [...lastMessage.sections, ...allNewSections],
-      };
-
-      return new_messages;
+      onNewSections(sections);
+      setPending(sections.length);
+    })().then(() => {
+      setLoading(false);
     });
+  }, [loading, queryID, stage, totalStages, pending, markDone]);
 
-    console.log("MESSAGES UPDATED", jobs);
+  /**
+   * When queryID is set, reset to first stage
+   */
+  useEffect(() => {
+    if (queryID) {
+      setStage(1);
+      setPending(0);
+    }
+  }, [queryID]);
+
+  /**
+   * Send a user message and initialize streaming
+   */
+  const handleSendMessage = async (text, mode) => {
+    // add user then bot placeholder
+    setMessages((prev) => [
+      ...prev,
+      { sender: "user", text, sections: [], timestamp: new Date() },
+      { sender: "bot", text: "", sections: [], timestamp: new Date() },
+    ]);
+
+    const resp = await Client.query({ query: text, top_k: 5, mode });
+    setQueryID(resp.query_id);
+    setTotalStages(resp.stages);
   };
 
   const formatTime = (date) => {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const value = {
-    messages,
-    addMessage,
-    queryMode,
-    setQueryMode,
-    handleSendMessage,
-    formatTime,
-    isStreaming: !!cancelStreamRef.current,
-  };
-
   return (
-    <MessageContext.Provider value={value}>{children}</MessageContext.Provider>
+    <MessageContext.Provider
+      value={{
+        messages,
+        handleSendMessage,
+        markDone,
+        setQueryMode,
+        queryMode,
+        currentStage: stage,
+        jobsLeft: pending,
+        formatTime,
+      }}
+    >
+      {children}
+    </MessageContext.Provider>
   );
 };

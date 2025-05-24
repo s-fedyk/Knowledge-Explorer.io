@@ -39,14 +39,17 @@ export interface JobStreamParams {
 }
 
 export class APIClient {
-  public async step(queryId: string): Promise<StepResponse> {
+  public async step(queryId: string, stage: int): Promise<StepResponse> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.STEP}/${queryId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${API_ENDPOINTS.STEP}/${queryId}/${stage}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -68,81 +71,43 @@ export class APIClient {
     }
   }
 
-  /**
-   * Stream job results using Server-Sent Events
-   * @param jobId The job ID to stream results for
-   * @param onToken Callback function that receives tokens as they arrive
-   * @param onComplete Callback function called when streaming is complete
-   * @param onError Callback function called when an error occurs
-   * @returns A cleanup function to close the stream
-   */
   public async streamJob(
     jobId: string,
-    onToken: (token: string) => void,
+    onToken: (token: any) => void,
     onComplete?: () => void,
     onError?: (error: ApiError) => void,
   ): Promise<() => void> {
-    console.log("beginning stream");
-    try {
-      const streamUrl = `${API_ENDPOINTS.STREAM_JOB}/${jobId}`;
-      const eventSource = new EventSource(streamUrl, {
-        withCredentials: false,
-      });
+    const eventSource = new EventSource(`${API_ENDPOINTS.STREAM_JOB}/${jobId}`);
 
-      // Handle incoming messages (tokens)
-      eventSource.onmessage = (event) => {
-        const chunk = JSON.parse(event.data);
-        console.log("message is ", chunk);
-
-        if (chunk === "[DONE]") {
-          // Stream is complete
-          eventSource.close();
-          if (onComplete) onComplete();
-          return;
-        }
-
-        try {
-          onToken(token);
-        } catch (parseError) {
-          // If parsing fails, pass the raw data
-          onToken(chunk);
-        }
-      };
-
-      eventSource.onerror = (error) => {
+    eventSource.onmessage = (e) => {
+      console.log("event", e);
+      if (e.data === "[DONE]") {
+        console.log("END EVENT");
         eventSource.close();
-        if (onError) {
-          onError(
-            this.createApiError(
-              {
-                error: "stream_error",
-                message: "Error in job stream connection",
-              },
-              500,
-            ),
-          );
-        }
-      };
-
-      // Return cleanup function
-      return () => {
-        eventSource.close();
-      };
-    } catch (error) {
-      if (onError) {
-        onError(
-          this.createApiError(
-            {
-              error: "network_error",
-              message: `Failed to establish job streaming connection: ${(error as Error).message}`,
-            },
-            500,
-          ),
-        );
+        onComplete?.();
+        return;
       }
-      // Return no-op cleanup function
-      return () => {};
-    }
+      let parsed;
+      try {
+        parsed = JSON.parse(e.data);
+      } catch {
+        parsed = e.data;
+      }
+      onToken(parsed);
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      onError?.({
+        error: "stream_error",
+        message: "Error in job stream connection",
+        status: 500,
+      });
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }
 
   /**
@@ -350,31 +315,38 @@ export class APIClient {
    * @returns Promise with the query response
    * @deprecated Use queryStream for better user experience
    */
-  public async query(queryRequest: QueryRequest): Promise<QueryResponse> {
+  public async query(
+    queryRequest: QueryRequest,
+    onComplete?: (resp: QueryResponse) => void,
+    onError?: (error: ApiError) => void,
+  ): Promise<QueryResponse> {
     try {
       const response = await fetch(API_ENDPOINTS.QUERY, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(queryRequest),
       });
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw this.createApiError(errorData, response.status);
+        const errData = await response.json();
+        throw this.createApiError(errData, response.status);
       }
-      return (await response.json()) as QueryResponse;
-    } catch (error) {
-      if ((error as ApiError).status) {
-        throw error;
-      }
-      throw this.createApiError(
-        {
-          error: "network_error",
-          message: `Failed to query documents: ${(error as Error).message}`,
-        },
-        500,
-      );
+
+      const data = (await response.json()) as QueryResponse;
+      if (onComplete) onComplete(data);
+      return data;
+    } catch (err) {
+      const apiErr: ApiError = (err as ApiError).status
+        ? (err as ApiError)
+        : this.createApiError(
+            {
+              error: "network_error",
+              message: `Failed to query documents: ${(err as Error).message}`,
+            },
+            500,
+          );
+      if (onError) onError(apiErr);
+      throw apiErr;
     }
   }
 

@@ -8,7 +8,8 @@ def get_job_generator(jobType: str, top_k: int = 3, *args) -> Generator:
     # local_engine = get_local_engine(top_k)
 
     jobTypeToJobStream = {
-        "community_summary": global_engine.stream_answer_from_summary
+        "community_summary": global_engine.stream_answer_from_summary,
+        "report_aggregation": global_engine.aggregate_answers_stream
     }
 
     return jobTypeToJobStream[jobType](*args)

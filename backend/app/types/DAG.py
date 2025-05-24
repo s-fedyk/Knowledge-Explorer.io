@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from app.client.mongo_client import get_jobs_collection, get_queries_collection
 from app.dependencies import get_global_engine
 from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
-from app.client.db.jobs_collection import JobsCollection
+from app.client.db.jobs_collection import JobsCollection, Status
 from app.client.db.queries_collection import QueriesCollection
 from pydantic import BaseModel, ConfigDict
 from app.logger import logger
@@ -78,9 +78,11 @@ async def store_summaries(
 
     jobs_collection: JobsCollection = context.jobs_collection
     assert (context.query_id is not None)
-    query_id: str = context.query_id
     assert (context.query is not None)
+
+    query_id: str = context.query_id
     query: str = context.query
+
     logger.info("Storing summaries=%s", summaries)
 
     jobs = []
@@ -105,7 +107,7 @@ async def store_summaries(
     ]
 
 
-# TODO fix sources.
+# TODO: fix sources.
 async def gather_summaries(
         query: str,
         context: GlobalQueryContext
@@ -113,6 +115,63 @@ async def gather_summaries(
     engine: GraphRAGQueryEngine = context.engine
     summaries, sources = await engine.aget_summaries(query)
     return summaries
+
+
+class UncompletedJobsException(Exception):
+    """Raised when there are still pending jobs that haven’t completed."""
+    pass
+
+
+async def gather_reports(
+    query_id: str,
+    context: GlobalQueryContext
+):
+    context.query_id = query_id
+    jobs_collection: JobsCollection = context.jobs_collection
+    completed_jobs = await jobs_collection.get_jobs_by_stage(
+        query_id,
+        1
+    )
+
+    results = []
+    for job in completed_jobs:
+        logger.info(
+            "Job is %s",
+            job
+        )
+        if job["status"] != Status.COMPLETED:
+            raise UncompletedJobsException(
+                "Tried to step when uncompleted jobs exist."
+            )
+
+        report = job["result"]
+        results.append(report)
+
+    return results
+
+
+async def aggregate_reports(
+    reports: list[str],
+    context: GlobalQueryContext
+):
+    assert (context.query_id is not None)
+
+    jobs_collection: JobsCollection = context.jobs_collection
+    job_id = str(uuid.uuid4())
+
+    await jobs_collection.create_job(
+        job_id=job_id,
+        query_id=context.query_id,
+        stage=2,
+        job_type="report_aggregation",
+        params={
+            "reports": reports
+        }
+    )
+
+    return [
+        ("final", [job_id])
+    ]
 
 
 async def get_query(
@@ -126,7 +185,8 @@ async def get_query(
     context.query_id = query_id
     if not query_data:
         raise HTTPException(
-            status_code=404, detail="Query not found or expired"
+            status_code=404,
+            detail="Query not found or expired"
         )
 
     query: str = query_data["query"]
@@ -160,13 +220,28 @@ def get_global_search_stages():
         step_function=get_query,
         next_step=stage_1_gather_summaries,
     )
-
     stage_1 = Stage(
         first_step=stage_1_get_query,
         name="Gather summaries",
     )
 
-    return [stage_1]
+    stage_2_aggregate_reports = Step(
+        step_function=aggregate_reports
+    )
+    stage_2_gather_reports = Step(
+        step_function=gather_reports,
+        next_step=stage_2_aggregate_reports
+    )
+
+    stage_2 = Stage(
+        first_step=stage_2_gather_reports,
+        name="Aggregate reports"
+    )
+
+    return [
+        stage_1,
+        stage_2
+    ]
 
 
 def get_stage(mode: str, stage: int) -> Stage:
@@ -174,7 +249,14 @@ def get_stage(mode: str, stage: int) -> Stage:
         "global": get_global_search_stages(),
     }
 
-    return mode_to_stage[mode][stage]
+    return mode_to_stage[mode][stage-1]
+
+
+def get_stages(mode: str) -> list[Stage]:
+    mode_to_stage = {
+        "global": get_global_search_stages(),
+    }
+    return mode_to_stage[mode]
 
 
 async def get_context(mode) -> StepContext:

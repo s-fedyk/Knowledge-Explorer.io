@@ -82,10 +82,6 @@ const remarkComponents = {
   ),
 };
 
-/**
- * TypedBlock component handles different block types with appropriate styling
- */
-
 const TypedBlock = ({ section }) => {
   const [content, setContent] = useState("");
   const [complete, setComplete] = useState(false);
@@ -94,27 +90,26 @@ const TypedBlock = ({ section }) => {
     let isCancelled = false;
     let cleanup: () => void;
 
-    // Kick off the stream
-    Client.streamJob(
-      section.id,
-      (token) => {
-        if (!isCancelled) {
-          setContent((prev) => prev + token);
-        }
-      },
-      () => {
-        if (!isCancelled) {
-          setComplete(true);
-        }
-      },
-    ).then((fn) => {
-      cleanup = fn;
-    });
+    (async () => {
+      cleanup = await Client.streamJob(
+        section.id,
+        (token) => {
+          if (!isCancelled) {
+            setContent((prev) => prev + token);
+          }
+        },
+        () => {
+          if (!isCancelled) {
+            setComplete(true);
+            section.onComplete();
+          }
+        },
+      );
+    })();
 
-    // Cleanup on unmount or before next effect
     return () => {
-      isCancelled = true; // stop any further state updates
-      if (cleanup) cleanup(); // close the EventSource
+      isCancelled = true;
+      if (cleanup) cleanup();
     };
   }, [section.id]);
 
@@ -172,7 +167,6 @@ const TypedBlock = ({ section }) => {
   const config = typeConfigs[section.type];
 
   if (!config) {
-    // Fallback for unknown types
     return (
       <div className="text-gray-700">
         <Remark rehypeReactOptions={{ components: remarkComponents }}>
@@ -211,5 +205,4 @@ const TypedBlock = ({ section }) => {
     </div>
   );
 };
-
 export default TypedBlock;
