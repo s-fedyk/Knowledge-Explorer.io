@@ -2,25 +2,33 @@ from llama_index.core.base.response.schema import Response, StreamingResponse
 from llama_index.core.query_engine import CustomQueryEngine
 from llama_index.core.llms import LLM, ChatResponse
 from llama_index.core import VectorStoreIndex
-from llama_index.core.postprocessor.llm_rerank import LLMRerank
 from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
-from typing import Generator, AsyncGenerator
+from typing import ClassVar, Generator, AsyncGenerator
 from pydantic import PrivateAttr
+from app.rag.StreamingReranker import StreamingReranker
 from llama_index.core.schema import (
-    Node,
     NodeWithScore,
     TextNode,
+    QueryBundle
 )
 
 from app.logger import logger
 import re
 
 
+def dummy_generator() -> Generator:
+    yield
+
+
 class GraphRAGLocalQueryEngine(CustomQueryEngine):
     index: VectorStoreIndex
     _llm: LLM = PrivateAttr(default_factory=lambda: Settings.llm)
     similarity_top_k: int = 20
+    ranker: ClassVar[StreamingReranker] = StreamingReranker(
+        choice_batch_size=5,
+        top_n=10,
+    )
 
     def generate_answer_from_context(self, context, query):
         prompt = (
@@ -118,6 +126,21 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         response = self._llm.stream_chat(messages)
         return response
 
+    def rerank(self, query: str, nodes_str: str) -> Generator:
+        def to_node(text: str) -> NodeWithScore:
+            node = TextNode()
+            node.set_content(text)
+            node = NodeWithScore(node=node, score=0)
+            return node
+
+        nodes: list[NodeWithScore] = list(map(to_node, nodes_str))
+        generator, nodes = self.ranker.streaming_postprocess_nodes(
+            nodes,
+            query_bundle=QueryBundle(query)
+        )
+
+        return generator
+
     async def aresponse_generator(self,
                                   query_str,
                                   chunks: list[NodeWithScore],
@@ -135,19 +158,16 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         logger.info("chunks are %s", chunks)
         logger.info("rels are %s", relationships)
         logger.info("entities are %s", entities)
-        ranker = LLMRerank(
-            choice_batch_size=5,
-            top_n=10
-        )
-        chunks = ranker.postprocess_nodes(
+
+        chunks = self.ranker.postprocess_nodes(
             chunks,
             query_str=query_str
         )
-        entities = ranker.postprocess_nodes(
+        entities = self.ranker.postprocess_nodes(
             entities,
             query_str=query_str
         )
-        relationships = ranker.postprocess_nodes(
+        relationships = self.ranker.postprocess_nodes(
             relationships,
             query_str=query_str
         )
@@ -204,6 +224,19 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         )
 
         return Response(response)
+
+    async def aretrieve_context(self, query_str: str) -> list[str]:
+        retriever = self.index.as_retriever()
+        response_context = await retriever.aretrieve(query_str)
+
+        source, context = response_context[0].text.split(sep="[SPLIT]")
+        chunks, relationships, entities = context.split("<>")
+
+        chunks = chunks.split("|")
+        entities = entities.split("|")
+        relationships = relationships.split("|")
+
+        return [chunks, entities, relationships]
 
     async def acustom_query(self, query_str: str) -> StreamingResponse:
         """Process all community summaries to generate answers to a specific query."""

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Remark } from "react-remark";
 import { Client } from "@api/query.ts";
+import { Info, Tag, CheckCircle, ArrowUpDown } from "lucide-react";
 
 /**
  * PulsingIndicator component with enhanced completion animation
@@ -88,7 +89,7 @@ const TypedBlock = ({ section }) => {
 
   useEffect(() => {
     let isCancelled = false;
-    let cleanup: () => void;
+    let cleanup;
 
     if (!complete) {
       (async () => {
@@ -123,14 +124,7 @@ const TypedBlock = ({ section }) => {
       iconColor: "text-amber-500",
       pulseColor: "text-amber-500",
       title: "Community Summary",
-      icon: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      ),
+      icon: <Info className="w-5 h-5" />,
     },
     entity: {
       bgColor: "bg-purple-50",
@@ -139,14 +133,7 @@ const TypedBlock = ({ section }) => {
       iconColor: "text-purple-500",
       pulseColor: "text-purple-500",
       title: "Entity Extraction",
-      icon: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      ),
+      icon: <Tag className="w-5 h-5" />,
     },
     final: {
       bgColor: "bg-blue-50",
@@ -155,14 +142,16 @@ const TypedBlock = ({ section }) => {
       iconColor: "text-blue-500",
       pulseColor: "text-blue-500",
       title: "Final Answer",
-      icon: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M5 13l4 4L19 7"
-        />
-      ),
+      icon: <CheckCircle className="w-5 h-5" />,
+    },
+    rerank: {
+      bgColor: "bg-emerald-50",
+      borderColor: "border-emerald-500",
+      textColor: "text-emerald-700",
+      iconColor: "text-emerald-500",
+      pulseColor: "text-emerald-500",
+      title: "Document Reranking",
+      icon: <ArrowUpDown className="w-5 h-5" />,
     },
   };
 
@@ -183,15 +172,7 @@ const TypedBlock = ({ section }) => {
       className={`${config.bgColor} border-l-4 ${config.borderColor} border-t border-b border-r p-3 rounded my-2`}
     >
       <div className="flex items-center mb-1">
-        <svg
-          className={`w-5 h-5 ${config.iconColor} mr-2`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {config.icon}
-        </svg>
+        <span className={`${config.iconColor} mr-2`}>{config.icon}</span>
         <span className={`font-medium ${config.textColor}`}>
           {config.title}
         </span>
@@ -207,4 +188,5 @@ const TypedBlock = ({ section }) => {
     </div>
   );
 };
+
 export default TypedBlock;

@@ -2,7 +2,8 @@ from typing import Optional, Callable, Coroutine
 import uuid
 from fastapi import HTTPException
 from app.client.mongo_client import get_jobs_collection, get_queries_collection
-from app.dependencies import get_global_engine
+from app.dependencies import get_global_engine, get_local_engine
+from app.rag.GraphRAGLocalQueryEngine import GraphRAGLocalQueryEngine
 from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
 from app.client.db.jobs_collection import JobsCollection, Status
 from app.client.db.queries_collection import QueriesCollection
@@ -13,15 +14,20 @@ from app.logger import logger
 class StepContext(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     context_type: str
+    jobs_collection: JobsCollection
+    queries_collection: QueriesCollection
+    query_id: Optional[str]
+    query: Optional[str]
 
 
 class GlobalQueryContext(StepContext):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     engine: GraphRAGQueryEngine
-    jobs_collection: JobsCollection
-    queries_collection: QueriesCollection
-    query_id: Optional[str]
-    query: Optional[str]
+
+
+class LocalQueryContext(StepContext):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    engine: GraphRAGLocalQueryEngine
 
 
 class Step(BaseModel):
@@ -176,13 +182,12 @@ async def aggregate_reports(
 
 async def get_query(
     query_id: str,
-    context: GlobalQueryContext,
+    context: StepContext,
 ) -> str:
 
     queries_collection: QueriesCollection = context.queries_collection
     query_data = await queries_collection.get_query(query_id)
 
-    context.query_id = query_id
     if not query_data:
         raise HTTPException(
             status_code=404,
@@ -190,9 +195,37 @@ async def get_query(
         )
 
     query: str = query_data["query"]
+    context.query_id = query_id
     context.query = query
 
     return query
+
+
+async def local_query(query: str, context: LocalQueryContext):
+    assert context.query_id
+    engine: GraphRAGLocalQueryEngine = context.engine
+
+    context_nodes = await engine.aretrieve_context(query)
+    jobs_collection: JobsCollection = context.jobs_collection
+    query_id: str = context.query_id
+
+    jobs = []
+    for serialized_nodes in context_nodes:
+        job_id = str(uuid.uuid4())
+        job_params = {
+            "query": query,
+            "nodes_str": serialized_nodes,
+        }
+        await jobs_collection.create_job(
+            job_id=job_id,
+            query_id=query_id,
+            stage=1,
+            job_type="rerank",
+            params=job_params,
+        )
+        jobs.append(job_id)
+
+    return [("rerank", jobs)]
 
 
 async def get_global_search_context(top_k: int = 3):
@@ -206,6 +239,36 @@ async def get_global_search_context(top_k: int = 3):
     )
 
     return context
+
+
+async def get_local_search_context(top_k: int = 3):
+    context = LocalQueryContext(
+        context_type="local",
+        engine=get_local_engine(top_k),
+        jobs_collection=await get_jobs_collection(),
+        queries_collection=await get_queries_collection(),
+        query_id=None,
+        query=None
+    )
+
+    return context
+
+
+def get_local_search_stages():
+    stage_1_query_and_store = Step(
+        step_function=local_query
+    )
+    stage_1_get_query = Step(
+        step_function=get_query,
+        next_step=stage_1_query_and_store
+    )
+
+    stage_1 = Stage(
+        first_step=stage_1_get_query,
+        name="Gather context"
+    )
+
+    return [stage_1]
 
 
 def get_global_search_stages():
@@ -247,6 +310,7 @@ def get_global_search_stages():
 def get_stage(mode: str, stage: int) -> Stage:
     mode_to_stage = {
         "global": get_global_search_stages(),
+        "local": get_local_search_stages()
     }
 
     return mode_to_stage[mode][stage-1]
@@ -255,12 +319,14 @@ def get_stage(mode: str, stage: int) -> Stage:
 def get_stages(mode: str) -> list[Stage]:
     mode_to_stage = {
         "global": get_global_search_stages(),
+        "local": get_local_search_stages()
     }
     return mode_to_stage[mode]
 
 
 async def get_context(mode) -> StepContext:
     mode_to_context = {
-        "global": get_global_search_context()
+        "global": get_global_search_context(),
+        "local": get_local_search_context()
     }
     return await mode_to_context[mode]

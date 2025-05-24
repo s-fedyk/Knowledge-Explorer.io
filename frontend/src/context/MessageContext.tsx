@@ -50,7 +50,6 @@ export const MessageProvider = ({ children }) => {
    * Called by each Section component when its job finishes
    */
   const markDone = () => {
-    console.log("job marked as DONE, ", pending);
     setPending((p) => p - 1);
   };
 
