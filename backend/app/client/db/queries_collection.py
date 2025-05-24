@@ -32,6 +32,7 @@ class QueriesCollection(MongoDBBase):
             "top_k": top_k,
             "status": "processing",
             "mode": mode,
+            "stage": 0,
             "query": query_text,
             "created_at": now,
             "updated_at": now,

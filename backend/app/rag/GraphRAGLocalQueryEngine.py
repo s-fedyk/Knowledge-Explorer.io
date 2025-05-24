@@ -1,6 +1,6 @@
 from llama_index.core.base.response.schema import Response, StreamingResponse
 from llama_index.core.query_engine import CustomQueryEngine
-from llama_index.core.llms import LLM
+from llama_index.core.llms import LLM, ChatResponse
 from llama_index.core import VectorStoreIndex
 from llama_index.core.postprocessor.llm_rerank import LLMRerank
 from llama_index.core.llms import ChatMessage
@@ -8,6 +8,7 @@ from llama_index.core import Settings
 from typing import Generator, AsyncGenerator
 from pydantic import PrivateAttr
 from llama_index.core.schema import (
+    Node,
     NodeWithScore,
     TextNode,
 )
@@ -37,6 +38,143 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         response = self._llm.chat(messages)
         cleaned_response = re.sub(r"^assistant:\s*", "", str(response)).strip()
         return cleaned_response
+
+    def stream_entity_extraction(self, query_str: str, max_entities: int = 5) -> Generator:
+
+        prompt = f"""
+        -Goal-
+        Given a text query, extract up to {max_entities} entities relating to the query.
+        An entity is a person, place, thing, object, or concept that can be used to index a semantic database.
+
+        -What to Extract-
+        - Named persons (people, characters, roles)
+        - Named places (cities, buildings, locations)
+        - Named organizations (companies, institutions)
+        - Objects and items (products, tools, vehicles, etc.)
+        - Concepts and topics (ideas, subjects, activities)
+        - Events and occasions
+        - Abstract entities (emotions, qualities, processes)
+
+        -Critical Instructions-
+        - Extract ONLY what is explicitly mentioned in the query
+        - Do NOT add information, details, or assumptions not present in the original text
+        - Do NOT resolve ambiguity by adding context
+        - Use the EXACT form/spelling as it appears in the query
+        - Include both named entities AND important nouns/objects
+
+        -Steps-
+        1. Identify all relevant entities including:
+           - Proper nouns (John, Apple, Chicago)
+           - Important common nouns (car, book, meeting, strategy)
+           - Key concepts and topics mentioned
+
+        2. For each entity:
+           - Extract exactly as written in the query
+           - Include singular/plural as given
+           - Don't modify or expand the term
+
+        -Output Format-
+        1. <entity 1>
+        2. <entity 2>
+        ...
+        {max_entities}. <entity {max_entities}>
+
+        -Examples-
+        Query: "When Tesla's Model S battery degrades, how do lithium-ion cells' thermal runaway risks compare to solid-state batteries being developed by quantumscape and toyota's research division?"
+        1. Tesla
+        2. Model S
+        3. battery
+        4. lithium-ion cells
+        5. thermal runaway
+        6. risks
+        7. solid-state batteries
+        8. quantumscape
+        9. toyota
+        10. research division
+
+        Query: "Why did the Berlin Wall fall in 1989 during gorbachev's presidency?"
+        1. Berlin Wall
+        2. 1989
+        3. gorbachev
+        4. presidency
+
+        Query: "What are the side effects of metformin for Type 2 diabetes patients with kidney disease?"
+        1. side effects
+        2. metformin
+        3. Type 2 diabetes
+        4. patients
+        5. kidney disease
+
+        Extract entities now. Do not provide explanations or follow-up questions.
+        Think step-by-step, providing the answers after a newline.
+        """
+        messages = [
+            ChatMessage(role="system", content=prompt),
+            ChatMessage(
+                role="user",
+                content=query_str,
+            ),
+        ]
+        response = self._llm.stream_chat(messages)
+        return response
+
+    async def aresponse_generator(self,
+                                  query_str,
+                                  chunks: list[NodeWithScore],
+                                  entities: list[NodeWithScore],
+                                  relationships: list[NodeWithScore]
+                                  ) -> AsyncGenerator:
+
+        entity_generator = self.stream_entity_extraction(query_str)
+
+        yield ChatResponse(message=ChatMessage(), delta="[ENTITYSTART]")
+        for tok in entity_generator:
+            yield tok
+        yield ChatResponse(message=ChatMessage(), delta="[ENTITYEND]")
+
+        logger.info("chunks are %s", chunks)
+        logger.info("rels are %s", relationships)
+        logger.info("entities are %s", entities)
+        ranker = LLMRerank(
+            choice_batch_size=5,
+            top_n=10
+        )
+        chunks = ranker.postprocess_nodes(
+            chunks,
+            query_str=query_str
+        )
+        entities = ranker.postprocess_nodes(
+            entities,
+            query_str=query_str
+        )
+        relationships = ranker.postprocess_nodes(
+            relationships,
+            query_str=query_str
+        )
+
+        def to_text(node: NodeWithScore) -> str:
+            text = node.get_content()
+            return text
+
+        chunks = "\n".join(list(map(to_text, chunks)))
+        entities = "\n".join(list(map(to_text, entities)))
+        relationships = "\n".join(list(map(to_text, relationships)))
+
+        context = f"""
+        Chunks: {chunks}
+        entities: {entities}
+        relationships: {relationships}
+        """
+
+        generator = self.stream_answer_from_context(
+            context,
+            query_str
+        )
+
+        yield ChatResponse(message=ChatMessage(), delta="[FINALSTART]")
+        for tok in generator:
+            yield tok
+        yield ChatResponse(message=ChatMessage(), delta="[FINALEND]")
 
     def stream_answer_from_context(self, context, query) -> Generator:
         prompt = (
@@ -89,48 +227,19 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         chunks = list(map(to_node, chunks))
         entities = list(map(to_node, entities))
         relationships = list(map(to_node, relationships))
-
-        ranker = LLMRerank(
-            choice_batch_size=5,
-            top_n=10
-        )
-        chunks = ranker.postprocess_nodes(
-            chunks,
-            query_str=query_str
-        )
-        entities = ranker.postprocess_nodes(
+        logger.info(
+            "entities are %s, %s",
             entities,
-            query_str=query_str
-        )
-        relationships = ranker.postprocess_nodes(
-            relationships,
-            query_str=query_str
+            relationships
         )
 
-        def to_text(node: NodeWithScore) -> str:
-            text = node.get_content()
-            return text
-
-        chunks = "\n".join(list(map(to_text, chunks)))
-        entities = "\n".join(list(map(to_text, entities)))
-        relationships = "\n".join(list(map(to_text, relationships)))
-
-        context = f"""
-        Chunks: {chunks}
-        entities: {entities}
-        relationships: {relationships}
-        """
-
-        generator = self.stream_answer_from_context(
-            context,
-            query_str
+        response_generator = self.aresponse_generator(
+            query_str,
+            chunks,
+            entities,
+            relationships
         )
-
-        async def gen(response) -> AsyncGenerator:
-            for r in response:
-                yield r
-
         return StreamingResponse(
-            response_gen=gen(generator),
+            response_gen=response_generator,
             source_nodes=[int(source)]
         )

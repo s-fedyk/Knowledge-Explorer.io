@@ -15,6 +15,8 @@ const MessageContent = ({ message }) => {
     return <div className="whitespace-pre-wrap">{message.text}</div>;
   }
 
+  console.log(message);
+
   // For bot messages with sections, render each section in order
   return (
     <div>

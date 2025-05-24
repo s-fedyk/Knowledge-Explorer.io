@@ -32,7 +32,6 @@ def parse_numbered(text: str) -> list[str]:
 class GraphRAGQueryEngine(CustomQueryEngine):
     graph_store: GraphRAGStore
     index: VectorStoreIndex
-    question_index: VectorStoreIndex
     _llm: LLM = PrivateAttr(default_factory=lambda: Settings.llm)
     similarity_top_k: int = 20
 
@@ -58,6 +57,9 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             response_gen=response_gen,
             source_nodes=source_nodes
         )
+
+    def combine_summaries(self, summaries: list[str]):
+        return
 
     def response_generator(self, query_str: str, community_summaries) -> Generator:
         logger.info("Synchronous Reponse generator!")
@@ -88,120 +90,29 @@ class GraphRAGQueryEngine(CustomQueryEngine):
             yield tok
         yield ChatResponse(message=ChatMessage(), delta="[FINALEND]")
 
-    def stream_entity_extraction(self, query_str: str, max_entities: int = 5) -> Generator:
-
-        prompt = f"""
-        -Goal-
-        Given a text query, extract up to {max_entities} entities relating to the query.
-        An entity is a person, place, thing, object, or concept that can be used to index a semantic database.
-
-        -What to Extract-
-        - Named persons (people, characters, roles)
-        - Named places (cities, buildings, locations)
-        - Named organizations (companies, institutions)
-        - Objects and items (products, tools, vehicles, etc.)
-        - Concepts and topics (ideas, subjects, activities)
-        - Events and occasions
-        - Abstract entities (emotions, qualities, processes)
-
-        -Critical Instructions-
-        - Extract ONLY what is explicitly mentioned in the query
-        - Do NOT add information, details, or assumptions not present in the original text
-        - Do NOT resolve ambiguity by adding context
-        - Use the EXACT form/spelling as it appears in the query
-        - Include both named entities AND important nouns/objects
-
-        -Steps-
-        1. Identify all relevant entities including:
-           - Proper nouns (John, Apple, Chicago)
-           - Important common nouns (car, book, meeting, strategy)
-           - Key concepts and topics mentioned
-
-        2. For each entity:
-           - Extract exactly as written in the query
-           - Include singular/plural as given
-           - Don't modify or expand the term
-
-        -Output Format-
-        1. <entity 1>
-        2. <entity 2>
-        ...
-        {max_entities}. <entity {max_entities}>
-
-        -Examples-
-        Query: "When Tesla's Model S battery degrades, how do lithium-ion cells' thermal runaway risks compare to solid-state batteries being developed by quantumscape and toyota's research division?"
-        1. Tesla
-        2. Model S
-        3. battery
-        4. lithium-ion cells
-        5. thermal runaway
-        6. risks
-        7. solid-state batteries
-        8. quantumscape
-        9. toyota
-        10. research division
-
-        Query: "Why did the Berlin Wall fall in 1989 during gorbachev's presidency?"
-        1. Berlin Wall
-        2. 1989
-        3. gorbachev
-        4. presidency
-
-        Query: "What are the side effects of metformin for Type 2 diabetes patients with kidney disease?"
-        1. side effects
-        2. metformin
-        3. Type 2 diabetes
-        4. patients
-        5. kidney disease
-
-        Extract entities now. Do not provide explanations or follow-up questions.
-        Think step-by-step, providing the answers after a newline.
-        """
-        messages = [
-            ChatMessage(role="system", content=prompt),
-            ChatMessage(
-                role="user",
-                content=query_str,
-            ),
-        ]
-        response = self._llm.stream_chat(messages)
-        return response
-
     async def aresponse_generator(self, query_str: str, community_summaries) -> AsyncGenerator:
-        entity_generator = self.stream_entity_extraction(query_str)
-        entities = []
 
-        yield ChatResponse(message=ChatMessage(), delta="[ENTITYSTART]")
-        for tok in entity_generator:
-            logger.info("TOKEN IS %s", tok)
-            yield tok
-            entities.append(tok)
-        yield ChatResponse(message=ChatMessage(), delta="[ENTITYEND]")
-
-        logger.info("ENTITES=%s", entities)
         community_answers = []
         for community_summary in community_summaries:
             summary_generator = self.stream_answer_from_summary(
                 community_summary,
                 query_str
             )
-
             summary = []
-
             yield ChatResponse(message=ChatMessage(), delta="[SUMSTART]")
             for tok in summary_generator:
                 yield tok
                 summary.append(tok.delta)
             yield ChatResponse(message=ChatMessage(), delta="[SUMEND]")
-
-            # yield ChatResponse(message=ChatMessage(), delta="\n")
             summary = ' '.join(summary)
             community_answers.append(summary)
 
         logger.info("Community answers: {%s}", community_answers)
         response_gen = self.aggregate_answers_stream(community_answers)
+        yield ChatResponse(message=ChatMessage(), delta="[FINALSTART]")
         for tok in response_gen:
             yield tok
+        yield ChatResponse(message=ChatMessage(), delta="[FINALEND]")
 
     def get_summaries(self, query_str):
         # Use the async version of the retriever
@@ -257,6 +168,11 @@ class GraphRAGQueryEngine(CustomQueryEngine):
 
     def stream_answer_from_summary(self, community_summary, query) -> Generator:
         """Generate an answer from a community summary based on a given query using LLM."""
+        logger.info(
+            "community=%s\nquery=%s",
+            community_summary,
+            query
+        )
         prompt = (
             f"Given the community summary: {community_summary}, "
             f"how would you answer the following query? Query: {query}"

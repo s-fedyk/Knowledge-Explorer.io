@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Generator, ForwardRef
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import uuid
@@ -8,13 +8,14 @@ import asyncio
 from pydantic import BaseModel
 from app.dependencies import get_engine
 from app.logger import logger
-from app.client.mongo_client import get_queries_collection
+from app.client.mongo_client import get_jobs_collection, get_queries_collection
+from app.types.DAG import get_context, get_stage
+from app.types.stream import get_job_generator
 
 # Configure logging
 router = APIRouter(tags=["query"])
 
 
-# Keep your existing models
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 3
@@ -49,7 +50,8 @@ async def get_query_sources(query_id: str):
     # Check if sources are available for this query
     if "sources" not in query_data or query_data["sources"] == None:
         raise HTTPException(
-            status_code=400, detail="Sources not available for this query yet"
+            status_code=400,
+            detail="Sources not available for this query yet"
         )
 
     # Extract source information in a more consumable format
@@ -89,9 +91,9 @@ async def create_query(request: QueryRequest):
     try:
         query_id = str(uuid.uuid4())
         logger.info(
-            f"Creating query: {query_id} for input: {request.query}")
+            f"Creating query: {query_id} for input: {request.query}"
+        )
 
-        # throws mongo server error on failure. Force client to retry?
         queries_collection = await get_queries_collection()
         await queries_collection.create_query(
             query_id,
@@ -100,11 +102,51 @@ async def create_query(request: QueryRequest):
             request.query
         )
 
-        return {"query_id": query_id}
+        return {
+            "query_id": query_id
+        }
     except Exception as e:
         logger.exception("Error creating query")
         raise HTTPException(
             status_code=500, detail=f"Query creation error: {str(e)}")
+
+
+class StepRequest(BaseModel):
+    query_id: str
+
+
+class StepResponse(BaseModel):
+    jobs: list[tuple[str, list[str]]]
+
+
+@router.post("/step/{query_id}", response_model=StepResponse)
+async def step(query_id: str):
+    """
+    Do everything in the stage.
+    """
+    try:
+        queries_collection = await get_queries_collection()
+        query_data = await queries_collection.get_query(
+            query_id
+        )
+
+        mode: str = query_data["mode"]
+        stage_idx: int = query_data["stage"]
+
+        stage = get_stage(
+            mode,
+            stage_idx
+        )
+        context = await get_context(mode)
+        jobs = await stage.execute(query_id, context)
+
+        return {
+            "jobs": jobs
+        }
+    except Exception as e:
+        logger.exception("Step error=%s", e)
+        raise HTTPException(
+            status_code=500, detail=f"Step Error: {str(e)}")
 
 
 class QueryStatus(BaseModel):
@@ -113,9 +155,7 @@ class QueryStatus(BaseModel):
 
 
 @router.get("/stream/{query_id}")
-async def stream_query_response(
-        query_id: str
-):
+async def stream_query_response(query_id: str):
     """
     Connect to a streaming endpoint using the query ID
     """
@@ -134,7 +174,6 @@ async def stream_query_response(
 
     try:
         logger.info(f"Executing query {query_id}: {query}")
-
         query_engine = get_engine(query_data["mode"], query_data["top_k"])
         streaming_response = await query_engine.acustom_query(query)
 
@@ -156,6 +195,77 @@ async def stream_query_response(
         # Mark query as failed
         query_data["status"] = "failed"
         query_data["error"] = str(e)
+        raise HTTPException(
+            status_code=500, detail=f"Streaming error: {str(e)}")
+
+
+async def event_stream(response_gen) -> AsyncGenerator:
+    """
+    Convert the LLM streaming generator to a proper FastAPI StreamingResponse format.
+    """
+    logger.info(response_gen)
+    try:
+        for response in response_gen:
+            token = str(response.delta)
+            json_token = json.dumps(token)
+            logger.info(f"Token is {json_token}")
+            yield f"data: {json_token}\n\n"
+            await asyncio.sleep(0.01)
+        # Signal completion
+        yield "data: [DONE]\n\n"
+    except Exception as e:
+        yield f"data: Error: {str(e)}\n\n"
+        yield "data: [DONE]\n\n"
+
+
+@router.get("/stream_job/{job_id}")
+async def stream_job(
+        job_id: str
+):
+    """
+    Connect to a streaming endpoint using the query ID
+    """
+    logger.info(f"Request to connect to stream for query: {job_id}")
+    jobs_collection = await get_jobs_collection()
+
+    job = await jobs_collection.get_job(job_id)
+
+    if not job:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found or expired"
+        )
+
+    logger.info(
+        "Retrieved job for streaming =%s",
+        job
+    )
+    job_type: str = job["job_type"]
+    job_parameters = job["params"].values()
+
+    logger.info(
+        "parameters are %s",
+        job_parameters
+    )
+
+    response_gen = get_job_generator(
+        job_type,
+        3,
+        *job_parameters
+    )
+    try:
+        logger.info(f"Executing job {job_id}: {job_type}")
+        return StreamingResponse(
+            content=event_stream(response_gen),
+            media_type='text/event-stream',
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+    except Exception as e:
+        logger.exception(f"Error streaming response for query {job_id}")
+        # Mark query as failed
         raise HTTPException(
             status_code=500, detail=f"Streaming error: {str(e)}")
 

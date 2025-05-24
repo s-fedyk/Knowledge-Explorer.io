@@ -397,7 +397,6 @@ export const MessageProvider = ({ children }) => {
     };
 
     try {
-      // Cancel any previous stream
       if (cancelStreamRef.current) {
         cancelStreamRef.current();
         cancelStreamRef.current = null;
@@ -408,6 +407,7 @@ export const MessageProvider = ({ children }) => {
         queryRequest,
         // Token callback
         (token) => {
+          console.log(token);
           processTokenStream(token, botMessageIndex);
         },
         // Completion callback
@@ -415,7 +415,6 @@ export const MessageProvider = ({ children }) => {
           try {
             console.log(sessionId);
             const sources = (await Client.getSources(sessionId)).sources;
-
             addGraphTab(sources);
             // Finalize any in-progress sections
             const state = streamingStateRef.current;

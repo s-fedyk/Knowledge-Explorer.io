@@ -1,6 +1,43 @@
 // File: components/chat/MessageBlocks.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Remark } from "react-remark";
+
+/**
+ * PulsingIndicator component with enhanced completion animation
+ */
+const PulsingIndicator = ({ complete, color }) => {
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [shouldHide, setShouldHide] = useState(false);
+
+  useEffect(() => {
+    if (complete && !isCompleting) {
+      setIsCompleting(true);
+      // After the completion animation, hide the indicator
+      setTimeout(() => {
+        setShouldHide(true);
+      }, 1000); // Total animation duration
+    }
+  }, [complete, isCompleting]);
+
+  if (shouldHide) return null;
+
+  return (
+    <span className={`ml-2 ${color} transition-all duration-300`}>
+      <span
+        className={`
+          inline-block
+          ${isCompleting ? "animate-ping-complete" : "animate-pulse"}
+        `}
+        style={{
+          animationDuration: isCompleting ? "0.5s" : "2s",
+          animationIterationCount: isCompleting ? "2" : "infinite",
+        }}
+      >
+        •
+      </span>
+    </span>
+  );
+};
 
 /**
  * SummaryBlock component renders a summary section
@@ -47,6 +84,7 @@ const remarkComponents = {
     </blockquote>
   ),
 };
+
 export const SummaryBlock = ({ content, complete }) => {
   return (
     <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded my-2">
@@ -67,9 +105,7 @@ export const SummaryBlock = ({ content, complete }) => {
         </svg>
         <span className="font-medium text-amber-700">Community Summary</span>
         {!complete && (
-          <span className="ml-2 text-amber-500">
-            <span className="animate-pulse">•</span>
-          </span>
+          <PulsingIndicator complete={complete} color="text-amber-500" />
         )}
       </div>
       {/* Use ReactMarkdown here */}
@@ -81,6 +117,7 @@ export const SummaryBlock = ({ content, complete }) => {
     </div>
   );
 };
+
 export const EntityBlock = ({ content, complete }) => {
   return (
     <div className="bg-purple-50 border-l-4 border-purple-500 p-3 rounded my-2">
@@ -101,9 +138,7 @@ export const EntityBlock = ({ content, complete }) => {
         </svg>
         <span className="font-medium text-purple-700">Entity Extraction</span>
         {!complete && (
-          <span className="ml-2 text-purple-500">
-            <span className="animate-pulse">•</span>
-          </span>
+          <PulsingIndicator complete={complete} color="text-purple-500" />
         )}
       </div>
       {/* Use ReactMarkdown here */}
@@ -139,9 +174,7 @@ export const FinalBlock = ({ content, complete }) => {
         </svg>
         <span className="font-medium text-blue-700">Final Answer</span>
         {!complete && (
-          <span className="ml-2 text-blue-500">
-            <span className="animate-pulse">•</span>
-          </span>
+          <PulsingIndicator complete={complete} color="text-blue-500" />
         )}
       </div>
       {/* Use ReactMarkdown here */}
@@ -165,7 +198,7 @@ export const SectionRenderer = ({ section }) => {
       );
     case "entity":
       return (
-        <EntityBlock content={section.content} oncomplete={section.complete} />
+        <EntityBlock content={section.content} complete={section.complete} />
       );
     case "final":
       return (
