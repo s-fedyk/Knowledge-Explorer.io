@@ -90,22 +90,24 @@ const TypedBlock = ({ section }) => {
     let isCancelled = false;
     let cleanup: () => void;
 
-    (async () => {
-      cleanup = await Client.streamJob(
-        section.id,
-        (token) => {
-          if (!isCancelled) {
-            setContent((prev) => prev + token);
-          }
-        },
-        () => {
-          if (!isCancelled) {
-            setComplete(true);
-            section.onComplete();
-          }
-        },
-      );
-    })();
+    if (!complete) {
+      (async () => {
+        cleanup = await Client.streamJob(
+          section.id,
+          (token) => {
+            if (!isCancelled) {
+              setContent((prev) => prev + token);
+            }
+          },
+          () => {
+            if (!isCancelled) {
+              setComplete(true);
+              section.onComplete();
+            }
+          },
+        );
+      })();
+    }
 
     return () => {
       isCancelled = true;
@@ -178,7 +180,7 @@ const TypedBlock = ({ section }) => {
 
   return (
     <div
-      className={`${config.bgColor} border-l-4 ${config.borderColor} p-3 rounded my-2`}
+      className={`${config.bgColor} border-l-4 ${config.borderColor} border-t border-b border-r p-3 rounded my-2`}
     >
       <div className="flex items-center mb-1">
         <svg
