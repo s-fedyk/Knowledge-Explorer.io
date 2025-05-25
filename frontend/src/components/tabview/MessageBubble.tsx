@@ -1,6 +1,5 @@
-// File: components/chat/MessageBubble.jsx
 import React from "react";
-import TypedBlock from "./MessageBlocks";
+import SectionFactory from "./SectionFactory";
 
 /**
  * MessageContent component that renders sections in order
@@ -19,7 +18,7 @@ const MessageContent = ({ message }) => {
   return (
     <div>
       {message.sections.map((section) => (
-        <TypedBlock section={section} />
+        <SectionFactory section={section} />
       ))}
     </div>
   );
