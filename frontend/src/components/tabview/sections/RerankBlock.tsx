@@ -9,7 +9,7 @@ const RerankBlock = ({ content, complete, onComplete, sectionId }) => {
     textColor: "text-emerald-700",
     iconColor: "text-emerald-500",
     pulseColor: "text-emerald-500",
-    title: "Document Reranking",
+    title: "Reranking",
     icon: <ArrowUpDown className="w-5 h-5" />,
   };
 
