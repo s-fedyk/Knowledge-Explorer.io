@@ -1,7 +1,5 @@
 from llama_index.core.base.response.schema import StreamingResponse
 from llama_index.core.query_engine import CustomQueryEngine
-from llama_index.core.postprocessor import LLMRerank
-
 from llama_index.core.llms import LLM, ChatResponse
 from llama_index.core import VectorStoreIndex
 from llama_index.core.llms import ChatMessage

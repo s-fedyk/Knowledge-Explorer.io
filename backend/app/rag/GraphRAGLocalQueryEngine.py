@@ -4,7 +4,7 @@ from llama_index.core.llms import LLM, ChatResponse
 from llama_index.core import VectorStoreIndex
 from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
-from typing import ClassVar, Generator, AsyncGenerator
+from typing import ClassVar, Generator, AsyncGenerator, List, Tuple
 from pydantic import PrivateAttr
 from app.rag.StreamingReranker import StreamingReranker
 from llama_index.core.schema import (
@@ -126,7 +126,12 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         response = self._llm.stream_chat(messages)
         return response
 
-    def rerank(self, query: str, nodes_str: str) -> Generator:
+    def rerank(self, query: str, nodes_str: str) -> Tuple[Generator, str]:
+        logger.info(
+            "Node string=[%s]",
+            nodes_str
+        )
+
         def to_node(text: str) -> NodeWithScore:
             node = TextNode()
             node.set_content(text)
@@ -134,12 +139,14 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
             return node
 
         nodes: list[NodeWithScore] = list(map(to_node, nodes_str))
-        generator, nodes = self.ranker.streaming_postprocess_nodes(
+
+        logger.info("Nodes are now: [%s]", nodes)
+        generator, stringified_nodes = self.ranker.streaming_postprocess_nodes(
             nodes,
             query_bundle=QueryBundle(query)
         )
 
-        return generator
+        return generator, stringified_nodes
 
     async def aresponse_generator(self,
                                   query_str,
@@ -235,6 +242,10 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         chunks = chunks.split("|")
         entities = entities.split("|")
         relationships = relationships.split("|")
+
+        logger.info("initial chunks =[%s]", chunks)
+        logger.info("initial entities=[%s]", entities)
+        logger.info("initial relationshps=[%s]", relationships)
 
         return [chunks, entities, relationships]
 

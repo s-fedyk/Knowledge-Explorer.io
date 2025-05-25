@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, Generator, ForwardRef
+from typing import AsyncGenerator, Generator, Optional, Dict
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import uuid
@@ -221,7 +221,10 @@ async def stream_query_response(query_id: str):
             status_code=500, detail=f"Streaming error: {str(e)}")
 
 
-async def event_stream(response_gen: Generator, job_id: str) -> AsyncGenerator:
+async def event_stream(
+        response_gen: Generator,
+        job_id: str,
+        data: str) -> AsyncGenerator:
     """
     Convert the LLM streaming generator to a proper FastAPI StreamingResponse format.
     """
@@ -237,10 +240,13 @@ async def event_stream(response_gen: Generator, job_id: str) -> AsyncGenerator:
         # Signal completion
         yield "data: [DONE]\n\n"
 
+        if data:
+            result = data
         logger.info(
             "Storing result=%s",
             result
         )
+
         await jobs_collection.store_job_result(
             job_id,
             result
@@ -283,17 +289,23 @@ async def stream_job(
         job_parameters
     )
 
-    response_gen = get_job_generator(
-        job_type,
-        3,
-        *job_parameters
-    )
+    response_data = get_job_generator(job_type, 3, *job_parameters)
+
+    response_gen = None
+    additional_data = None
+    if isinstance(response_data, tuple):
+        response_gen, additional_data = response_data
+    else:
+        response_gen = response_data
+        additional_data = None
+
     try:
         logger.info(f"Executing job {job_id}: {job_type}")
         return StreamingResponse(
             content=event_stream(
                 response_gen,
-                job_id
+                job_id,
+                additional_data  # Pass additional data if it exists
             ),
             media_type='text/event-stream',
             headers={

@@ -2,6 +2,7 @@ from llama_index.core.indices.utils import (
     default_format_node_batch_fn,
     default_parse_choice_select_answer_fn,
 )
+import logging
 from llama_index.core.prompts.mixin import PromptDictType
 from llama_index.core.llms import LLM, ChatResponse
 from llama_index.core import BasePromptTemplate
@@ -10,12 +11,19 @@ from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
 from typing import Callable, Generator, List, Optional, Tuple
 from pydantic import Field, PrivateAttr, SerializeAsAny
+
 from llama_index.core.schema import (
     NodeWithScore,
     QueryBundle
 )
 
-from app.rag.prompts import CHUNK_CHOICE_RERANKING_PROMPT
+from app.rag.prompts import CHOICE_RERANKING_PROMPT
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 class StreamingReranker(LLMRerank):
@@ -39,7 +47,7 @@ class StreamingReranker(LLMRerank):
         parse_choice_select_answer_fn: Optional[Callable] = None,
         top_n: int = 10,
     ) -> None:
-        choice_select_prompt = CHUNK_CHOICE_RERANKING_PROMPT
+        choice_select_prompt = CHOICE_RERANKING_PROMPT
         llm = llm or Settings.llm
 
         super().__init__(
@@ -72,7 +80,7 @@ class StreamingReranker(LLMRerank):
         self,
         nodes: List[NodeWithScore],
         query_bundle: Optional[QueryBundle] = None,
-    ) -> Tuple[Generator[str, None, None], List[NodeWithScore]]:
+    ) -> Tuple[Generator[str, None, None], str]:
 
         if query_bundle is None:
             raise ValueError("Query bundle must be provided.")
@@ -81,33 +89,46 @@ class StreamingReranker(LLMRerank):
         if not nodes:
             def _empty_stream():
                 yield "[no nodes to rerank]"
-            return _empty_stream(), []
+            return _empty_stream(), ""
 
         # 1) define your streamer
         def _stream():
             total = len(nodes)
             initial_results = []
             for i in range(0, total, self.choice_batch_size):
+                if (i != 0):
+                    yield ChatResponse(message=ChatMessage(), delta="\n")
+
                 batch = nodes[i: i + self.choice_batch_size]
-                # **use the LLM’s streaming API**, if available
+                context_str = [
+                    f"Document {i}:\n{node.text}\n" for i, node in enumerate(batch)
+                ]
+
+                logger.info("context is = [%s]", context_str)
+
+                result_str = ""
                 for chunk in self.llm.stream(
                     self.choice_select_prompt,
-                    context_str=self._format_node_batch_fn(
-                        [n.node for n in batch]
-                    ),
+                    context_str=context_str,
                     query_str=query_bundle.query_str,
                 ):
+                    result_str += chunk
                     yield ChatResponse(message=ChatMessage(), delta=chunk)
 
+                logger.info("Full rerank is %s", result_str)
                 # parse final response of this batch
                 raw_choices, relevances = self._parse_choice_select_answer_fn(
                     "<full response if needed>", len(batch)
                 )
+
                 # …build partial NodeWithScore list…
                 choice_idxs = [int(c) - 1 for c in raw_choices]
                 for idx, rel in zip(choice_idxs, relevances or []):
                     node = batch[idx].node
                     initial_results.append(NodeWithScore(node=node, score=rel))
+
+        def to_string(node: NodeWithScore) -> str:
+            return node.text
 
         all_results = sorted(
             [
@@ -118,4 +139,5 @@ class StreamingReranker(LLMRerank):
             reverse=True,
         )[:self.top_n]
 
-        return _stream(), all_results
+        stringified_nodes = "\n".join(map(to_string, all_results))
+        return _stream(), stringified_nodes
