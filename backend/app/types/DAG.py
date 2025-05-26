@@ -1,6 +1,5 @@
 from typing import Optional, Callable, Coroutine, Any
 import uuid
-
 from llama_index.core.schema import NodeWithScore
 from app.client.mongo_client import get_jobs_collection
 from app.dependencies import get_global_engine, get_local_engine
@@ -16,7 +15,7 @@ class StepContext(BaseModel):
     context_type: str
     jobs_collection: JobsCollection
     query_data: dict[str, Any]
-    sources: Optional[list[str]]
+    sources: Optional[list[int]]
 
 
 class GlobalQueryContext(StepContext):
@@ -278,6 +277,8 @@ async def local_query(context: LocalQueryContext):
     logger.info("Query is %s", context.query_data["query"])
 
     context_nodes, sources = await engine.aretrieve_context(entities)
+
+    logger.info("Source nodes are")
     context.sources = sources
 
     jobs = []

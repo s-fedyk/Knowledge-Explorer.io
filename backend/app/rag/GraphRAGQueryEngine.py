@@ -136,7 +136,6 @@ class GraphRAGQueryEngine(CustomQueryEngine):
 
         # Use the async retrieve method
         nodes_retrieved = await retriever.aretrieve(query_str)
-
         logger.info(nodes_retrieved)
 
         summaries = []
@@ -144,7 +143,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         for node in nodes_retrieved:
             source, text = node.text.split(sep="[SPLIT]")
             summaries.append(text)
-            sources.append(source)
+            sources.append(int(source))
 
         return summaries, sources
 

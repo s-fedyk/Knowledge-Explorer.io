@@ -244,6 +244,15 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         logger.info("Retrieved data is [%s]", retrieved_data)
 
         source_nodes, context = retrieved_data[0].text.split(sep="[SPLIT]")
+
+        source_nodes = list(
+            map(
+                int,
+                source_nodes.split("|")
+            )
+        )
+
+        logger.info("Initial source nodes are [%s]", source_nodes)
         chunks, relationships, entities = context.split("<>")
 
         chunks = [x for x in chunks.split("|") if x != "null"]

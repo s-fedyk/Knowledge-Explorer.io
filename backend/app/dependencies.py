@@ -90,10 +90,17 @@ collect {
     WHERE NOT n:__Question__
     RETURN "(" + n.name + ") " + n.entity_description AS descriptionText
     LIMIT 30
-} as entities
-RETURN ID(nodes[0]) + "[SPLIT]"+ apoc.text.join(text_mapping, '|') +
+} as entities,
+collect {
+    UNWIND nodes as n
+    MATCH (n)-[r]-(m:__Entity__) 
+    WHERE NOT m IN nodes AND NOT n:__Question__
+    RETURN "(" + n.name + ") " + n.entity_description AS descriptionText
+    LIMIT 30
+} as relatedEntities
+RETURN apoc.text.join([n IN nodes | toString(id(n))], '|') + "[SPLIT]"+ apoc.text.join(text_mapping, '|') +
        "<>" + apoc.text.join(outsideRels + insideRels, '|') + 
-       "<>" + apoc.text.join(entities, "|") AS text, 
+       "<>" + apoc.text.join(entities, "|") +"|"+ apoc.text.join(relatedEntities, "|") AS text, 
        1.0 as score,
        nodes[0].id as id,
        {_node_type:nodes[0]._node_type, _node_content:nodes[0]._node_content} AS metadata

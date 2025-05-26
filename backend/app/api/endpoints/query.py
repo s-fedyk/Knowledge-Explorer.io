@@ -121,7 +121,7 @@ class StepRequest(BaseModel):
 
 class StepResponse(BaseModel):
     jobs: list[tuple[str, list[str]]]
-    sources: Optional[list[str]]
+    sources: Optional[list[int]]
 
 
 @router.post("/step/{query_id}/{step}", response_model=StepResponse)
@@ -159,9 +159,6 @@ async def step(query_id: str, step: int):
 
         logger.info("Step sources=[%s]", context.sources)
         await queries_collection.increment_stage(query_id)
-
-        if context.sources:
-            logger.info("Sources are:")
 
         return {
             "jobs": jobs,
