@@ -72,16 +72,34 @@ collect {
 } AS text_mapping,
 collect {
     UNWIND nodes as n
-    MATCH (n)-[r]-(m) 
+    // Outgoing relationships from nodes to external nodes
+    OPTIONAL MATCH (n)-[r]->(m) 
     WHERE NOT m IN nodes
-    RETURN "{(" +n.name + ")["+type(r)+"]->(" + m.name + ")} "+r.relationship_description AS descriptionText
+    WITH n, r, m WHERE r IS NOT NULL
+    RETURN "{(" + n.name + ")[" + type(r) + "]->(" + m.name + ")} " + r.relationship_description AS descriptionText
+    UNION
+    // Incoming relationships from external nodes to nodes
+    UNWIND nodes as n
+    OPTIONAL MATCH (m)-[r]->(n) 
+    WHERE NOT m IN nodes
+    WITH n, r, m WHERE r IS NOT NULL
+    RETURN "{(" + m.name + ")[" + type(r) + "]->(" + n.name + ")} " + r.relationship_description AS descriptionText
     LIMIT 30
 } as outsideRels,
 collect {
     UNWIND nodes as n
-    MATCH (n)-[r]-(m) 
+    // Outgoing relationships between nodes in the collection
+    OPTIONAL MATCH (n)-[r]->(m) 
     WHERE m IN nodes
-    RETURN "{(" +n.name + ")[type(r)]->(" + m.name + ")} "+ r.relationship_description AS descriptionText
+    WITH n, r, m WHERE r IS NOT NULL
+    RETURN "{(" + n.name + ")[" + type(r) + "]->(" + m.name + ")} " + r.relationship_description AS descriptionText
+    UNION
+    // Incoming relationships between nodes in the collection
+    UNWIND nodes as n
+    OPTIONAL MATCH (m)-[r]->(n) 
+    WHERE m IN nodes AND m <> n
+    WITH n, r, m WHERE r IS NOT NULL
+    RETURN "{(" + m.name + ")[" + type(r) + "]->(" + n.name + ")} " + r.relationship_description AS descriptionText
     LIMIT 30
 } as insideRels,
 collect {
@@ -139,11 +157,11 @@ def get_local_engine(top_k: int):
     return local_query_engine
 
 
-RET_QUERY_COMMUNITY = (
-    f"RETURN  + id(node) + \"[SPLIT]\" + node.text AS text, score, id(node) as id, "
-    f"node {{.*, text: Null, "
-    f"embedding: Null, id: node.id }} AS metadata"
-)
+RET_QUERY_COMMUNITY = """
+RETURN  id(node) + "[SPLIT]{" + id(node) +"} "+ node.text AS text, score, id(node) as id,
+node {.*, text: Null, 
+embedding: Null, id: node.id } AS metadata
+"""
 
 
 def get_global_engine(top_k: int):

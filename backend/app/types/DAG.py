@@ -207,13 +207,14 @@ async def gather_reports(
         report = job["result"]
         results.append(report)
 
-    return results
+    return [results]
 
 
 async def aggregate_reports(
-    reports: list[str],
     context: GlobalQueryContext
 ):
+    reports = await (gather_reports(context))
+
     query_id = context.query_data["query_id"]
     stage = context.query_data["stage"]
 
@@ -296,7 +297,7 @@ async def local_query(context: LocalQueryContext):
     return context_nodes
 
 
-async def rerank(nodes: list[NodeWithScore], context: LocalQueryContext):
+async def rerank(nodes: list[list[str]], context: LocalQueryContext):
     jobs_collection: JobsCollection = context.jobs_collection
 
     jobs = []
@@ -368,6 +369,7 @@ def get_local_search_stages():
         step_function=local_query,
         next_step=stage_2_rerank
     )
+
     stage_2 = Stage(
         first_step=stage_2_query,
         name="Gathering entities"
@@ -402,22 +404,31 @@ def get_global_search_stages():
         name="Gather summaries",
     )
 
-    stage_2_aggregate_reports = Step(
-        step_function=aggregate_reports
+    stage_2_rerank = Step(
+        step_function=rerank
     )
     stage_2_gather_reports = Step(
         step_function=gather_reports,
-        next_step=stage_2_aggregate_reports
+        next_step=stage_2_rerank
     )
 
     stage_2 = Stage(
         first_step=stage_2_gather_reports,
+        name="Rerank reports",
+    )
+
+    stage_3_aggregate_reports = Step(
+        step_function=aggregate_reports
+    )
+    stage_3 = Stage(
+        first_step=stage_3_aggregate_reports,
         name="Aggregate reports"
     )
 
     return [
         stage_1,
-        stage_2
+        stage_2,
+        stage_3
     ]
 
 

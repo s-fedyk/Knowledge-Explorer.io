@@ -259,15 +259,10 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         entities = [x for x in entities.split("|") if x != "null"]
         relationships = [x for x in relationships.split("|") if x != "null"]
 
-        logger.info("initial chunks =[%s]", chunks)
-
-        logger.info("===ENTITIES===")
-        for entity in entities:
-            logger.info(entity)
-
-        logger.info("===RELATIONSHIPS===")
-        for rel in relationships:
-            logger.info(rel)
+        logger.info(
+            "initial chunks =[%s]",
+            chunks
+        )
 
         return [chunks, entities, relationships], source_nodes
 

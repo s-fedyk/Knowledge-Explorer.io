@@ -114,11 +114,6 @@ class StreamingReranker(LLMRerank):
                 yield "[no nodes to rerank]"
             return _empty_stream(), ""
 
-            logger.info(
-                "Node_names=%s",
-                node_names
-            )
-
         # 1) define your streamer
         def _stream():
             total = len(nodes)
