@@ -6,6 +6,7 @@ from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
 from typing import Generator, AsyncGenerator
 
+from llama_index.core.schema import NodeWithScore
 from pydantic import PrivateAttr
 from app.logger import logger
 
@@ -143,7 +144,7 @@ class GraphRAGQueryEngine(CustomQueryEngine):
         for node in nodes_retrieved:
             source, text = node.text.split(sep="[SPLIT]")
             summaries.append(text)
-            sources.append(int(source))
+            sources.append(source)
 
         return summaries, sources
 

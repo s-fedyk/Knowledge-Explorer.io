@@ -60,34 +60,35 @@ def get_vector_store():
 
 
 RET_QUERY = """
-WITH collect(node) as all_nodes
-WITH [n IN all_nodes WHERE NOT n:__Question__] as nodes
+WITH collect(node) as nodes
 WITH nodes,
 collect {
     UNWIND nodes as n
     MATCH (c:Chunk)-[:MENTIONS]->(n)
     WITH c, count(distinct n) as freq
-    RETURN "~"+ c.name + "~" + c.text AS chunkText
+    RETURN c.text AS chunkText
     ORDER BY freq DESC
     LIMIT 10
 } AS text_mapping,
 collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m) 
-    WHERE NOT m IN nodes AND r.relationship_description IS NOT NULL 
-    RETURN "~(" +n.name + ")[r.caption]->(" + m.name + ")~"+r.relationship_description AS descriptionText
+    WHERE NOT m IN nodes
+    RETURN "(" +n.name + ")->(" + m.name + ") "+r.relationship_description AS descriptionText
     LIMIT 30
 } as outsideRels,
 collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m) 
-    WHERE m IN nodes AND r.relationship_description IS NOT NULL 
-    RETURN "~(" +n.name + ")[r.caption]->(" + m.name + ")~"+ r.relationship_description AS descriptionText
+    WHERE m IN nodes
+    RETURN "(" +n.name + ")->(" + m.name + ") "+ r.relationship_description AS descriptionText
     LIMIT 30
 } as insideRels,
 collect {
     UNWIND nodes as n
-    RETURN "~(" + n.name + ")~" + n.entity_description AS descriptionText
+    MATCH (n)
+    WHERE NOT n:__Question__
+    RETURN "(" + n.name + ") " + n.entity_description AS descriptionText
     LIMIT 30
 } as entities
 RETURN ID(nodes[0]) + "[SPLIT]"+ apoc.text.join(text_mapping, '|') +

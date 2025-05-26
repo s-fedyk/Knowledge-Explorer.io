@@ -1,12 +1,10 @@
-from typing import AsyncGenerator, Generator, Optional, Dict
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 import uuid
 import json
 import asyncio
-
+from typing import AsyncGenerator, Generator, Optional
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from app.client.db import jobs_collection
 from app.dependencies import get_engine
 from app.logger import logger
 from app.client.mongo_client import get_jobs_collection, get_queries_collection
@@ -123,6 +121,7 @@ class StepRequest(BaseModel):
 
 class StepResponse(BaseModel):
     jobs: list[tuple[str, list[str]]]
+    sources: Optional[list[str]]
 
 
 @router.post("/step/{query_id}/{step}", response_model=StepResponse)
@@ -152,10 +151,21 @@ async def step(query_id: str, step: int):
 
         context = await get_context(mode, query_data)
         jobs = await stage.execute(context)
-        logger.info("Resulting jobs=[%s]", jobs)
+
+        logger.info(
+            "Resulting jobs=[%s]",
+            jobs
+        )
+
+        logger.info("Step sources=[%s]", context.sources)
+        await queries_collection.increment_stage(query_id)
+
+        if context.sources:
+            logger.info("Sources are:")
 
         return {
-            "jobs": jobs
+            "jobs": jobs,
+            "sources": context.sources
         }
 
     except UncompletedJobsException as e:
@@ -230,7 +240,7 @@ async def event_stream(
     """
     Convert the LLM streaming generator to a proper FastAPI StreamingResponse format.
     """
-    logger.info(response_gen)
+    logger.info("Streaming job...")
     jobs_collection = await get_jobs_collection()
     try:
         result: str = ""
@@ -291,7 +301,7 @@ async def stream_job(
         job_parameters
     )
 
-    response_data = get_job_generator(job_type, 3, *job_parameters)
+    response_data = get_job_generator(job_type, 5, *job_parameters)
 
     response_gen = None
     additional_data = None

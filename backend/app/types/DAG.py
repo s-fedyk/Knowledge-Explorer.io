@@ -1,12 +1,12 @@
 from typing import Optional, Callable, Coroutine, Any
 import uuid
-from fastapi import HTTPException
-from app.client.mongo_client import get_jobs_collection, get_queries_collection
+
+from llama_index.core.schema import NodeWithScore
+from app.client.mongo_client import get_jobs_collection
 from app.dependencies import get_global_engine, get_local_engine
 from app.rag.GraphRAGLocalQueryEngine import GraphRAGLocalQueryEngine
 from app.rag.GraphRAGQueryEngine import GraphRAGQueryEngine
 from app.client.db.jobs_collection import JobsCollection, Status
-from app.client.db.queries_collection import QueriesCollection
 from pydantic import BaseModel, ConfigDict
 from app.logger import logger
 
@@ -15,8 +15,8 @@ class StepContext(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     context_type: str
     jobs_collection: JobsCollection
-    queries_collection: QueriesCollection
     query_data: dict[str, Any]
+    sources: Optional[list[str]]
 
 
 class GlobalQueryContext(StepContext):
@@ -76,6 +76,10 @@ class Stage(BaseModel):
         return await self.first_step.take_step(context=context)
 
 
+def to_text(node: NodeWithScore):
+    return node.text
+
+
 async def store_summaries(
     summaries: list[str],
     context: GlobalQueryContext,
@@ -121,6 +125,8 @@ async def gather_summaries(
     summaries, sources = await engine.aget_summaries(
         query
     )
+    context.sources = sources
+
     return summaries
 
 
@@ -141,11 +147,15 @@ async def gather_entities(
     logger.info("gathering entities...")
     completed_jobs = await jobs_collection.get_jobs_by_stage(
         query_id,
-        stage
+        stage - 1
     )
 
     reports = ""
     for job in completed_jobs:
+        if job["status"] != Status.COMPLETED:
+            raise UncompletedJobsException(
+                "Tried to step when uncompleted jobs exist."
+            )
         reports += job["result"]
 
     logger.info("Entity context is %s", reports)
@@ -173,7 +183,7 @@ async def gather_reports(
     jobs_collection: JobsCollection = context.jobs_collection
     completed_jobs = await jobs_collection.get_jobs_by_stage(
         context.query_data["query_id"],
-        context.query_data["stage"]
+        context.query_data["stage"] - 1
     )
 
     results = []
@@ -207,7 +217,7 @@ async def aggregate_reports(
         job_id=job_id,
         query_id=query_id,
         stage=stage,
-        job_type="report_aggregation",
+        job_type="report-aggregation",
         params={
             "reports": reports
         }
@@ -233,6 +243,8 @@ async def extract_entities(context: LocalQueryContext):
         }
     )
 
+    logger.info("Extracting entities for query =[%s]", context.query_data)
+
     jobs = [job_id]
     return [
         ("entity-extraction", jobs)
@@ -256,9 +268,17 @@ async def local_query(context: LocalQueryContext):
 
     entities = ""
     for job in entity_extraction_job:
+        if job["status"] != Status.COMPLETED:
+            raise UncompletedJobsException(
+                "Tried to step when uncompleted jobs exist."
+            )
         entities += job["result"]
 
-    context_nodes = await engine.aretrieve_context(context.query_data["query"])
+    logger.info("Entities are : %s", entities)
+    logger.info("Query is %s", context.query_data["query"])
+
+    context_nodes, sources = await engine.aretrieve_context(entities)
+    context.sources = sources
 
     jobs = []
     for serialized_nodes in context_nodes:
@@ -289,8 +309,8 @@ async def get_global_search_context(
         context_type="Global",
         engine=get_global_engine(top_k),
         jobs_collection=await get_jobs_collection(),
-        queries_collection=await get_queries_collection(),
-        query_data=query_data
+        query_data=query_data,
+        sources=None
     )
 
     return context
@@ -304,8 +324,8 @@ async def get_local_search_context(
         context_type="local",
         engine=get_local_engine(top_k),
         jobs_collection=await get_jobs_collection(),
-        queries_collection=await get_queries_collection(),
-        query_data=query_data
+        query_data=query_data,
+        sources=None
     )
 
     return context

@@ -202,7 +202,13 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
             yield tok
         yield ChatResponse(message=ChatMessage(), delta="[FINALEND]")
 
-    def stream_answer_from_context(self, context, query) -> Generator:
+    def stream_answer_from_context(self, query, context) -> Generator:
+        logger.info(
+            "Streaming answer from context=[%s] with query=%s",
+            context,
+            query
+        )
+
         prompt = (
             f"Given the context extracted from a knowledge graph: {context}"
             f"how would you answer the following query? Query: {query}"
@@ -231,22 +237,30 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
 
         return Response(response)
 
-    async def aretrieve_context(self, query_str: str) -> list[str]:
+    async def aretrieve_context(self, query_str: str):
         retriever = self.index.as_retriever()
-        response_context = await retriever.aretrieve(query_str)
 
-        source, context = response_context[0].text.split(sep="[SPLIT]")
+        retrieved_data = await retriever.aretrieve(query_str)
+        logger.info("Retrieved data is [%s]", retrieved_data)
+
+        source_nodes, context = retrieved_data[0].text.split(sep="[SPLIT]")
         chunks, relationships, entities = context.split("<>")
 
-        chunks = chunks.split("|")
-        entities = entities.split("|")
-        relationships = relationships.split("|")
+        chunks = [x for x in chunks.split("|") if x != "null"]
+        entities = [x for x in entities.split("|") if x != "null"]
+        relationships = [x for x in relationships.split("|") if x != "null"]
 
         logger.info("initial chunks =[%s]", chunks)
-        logger.info("initial entities=[%s]", entities)
-        logger.info("initial relationshps=[%s]", relationships)
 
-        return [chunks, entities, relationships]
+        logger.info("===ENTITIES===")
+        for entity in entities:
+            logger.info(entity)
+
+        logger.info("===RELATIONSHIPS===")
+        for rel in relationships:
+            logger.info(rel)
+
+        return [chunks, entities, relationships], source_nodes
 
     async def acustom_query(self, query_str: str) -> StreamingResponse:
         """Process all community summaries to generate answers to a specific query."""

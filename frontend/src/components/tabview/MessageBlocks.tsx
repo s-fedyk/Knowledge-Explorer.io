@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Remark } from "react-remark";
 import { Client } from "@api/query.ts";
-import { Info, Tag, CheckCircle, ArrowUpDown } from "lucide-react";
+import { Info, PersonStanding, CheckCircle, ArrowUpDown } from "lucide-react";
 
 /**
  * PulsingIndicator component with enhanced completion animation
@@ -133,7 +133,7 @@ const TypedBlock = ({ section }) => {
       iconColor: "text-purple-500",
       pulseColor: "text-purple-500",
       title: "Entity Extraction",
-      icon: <Tag className="w-5 h-5" />,
+      icon: <PersonStanding className="w-5 h-5" />,
     },
     final: {
       bgColor: "bg-blue-50",

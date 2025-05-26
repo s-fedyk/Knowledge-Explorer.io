@@ -32,7 +32,7 @@ class QueriesCollection(MongoDBBase):
             "top_k": top_k,
             "status": "processing",
             "mode": mode,
-            "stage": 0,
+            "stage": 1,
             "query": query_text,
             "created_at": now,
             "updated_at": now,
@@ -66,6 +66,21 @@ class QueriesCollection(MongoDBBase):
         """Delete a query by ID"""
         result = await self.collection.delete_one({"query_id": query_id})
         return result.deleted_count > 0
+
+    @log_db_operation
+    async def increment_stage(self, query_id: str) -> Optional[Dict[str, Any]]:
+        """Increment the stage for a query by 1"""
+        now = datetime.utcnow()
+        result = await self.collection.update_one(
+            {"query_id": query_id},
+            {
+                "$inc": {"stage": 1},
+                "$set": {"updated_at": now}
+            }
+        )
+        if result.matched_count:
+            return await self.get_query(query_id)
+        return None
 
     @log_db_operation
     async def store_query_sources(self, query_id: str, sources: List[str]) -> bool:

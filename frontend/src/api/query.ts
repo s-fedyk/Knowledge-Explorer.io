@@ -32,6 +32,7 @@ export interface StepRequest {
 
 export interface StepResponse {
   jobs: Array<[string, string[]]>;
+  sources?: Array<string>;
 }
 
 export interface JobStreamParams {

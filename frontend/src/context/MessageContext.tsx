@@ -78,7 +78,8 @@ export const MessageProvider = ({ children }) => {
     setLoading(true);
     (async () => {
       console.log("Stepping into stage", stage);
-      const { jobs } = await Client.step(queryID, stage);
+      const { jobs, sources } = await Client.step(queryID, stage);
+      console.log(sources);
       const sections = jobs.flatMap(([type, ids]) =>
         ids.map((id) => ({
           id,

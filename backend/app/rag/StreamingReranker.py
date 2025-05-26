@@ -95,9 +95,14 @@ class StreamingReranker(LLMRerank):
         def _stream():
             total = len(nodes)
             initial_results = []
+
+            logger.info("Reranker is Analyzing %s", nodes)
             for i in range(0, total, self.choice_batch_size):
                 if (i != 0):
-                    yield ChatResponse(message=ChatMessage(), delta="\n")
+                    yield ChatResponse(
+                        message=ChatMessage(),
+                        delta="\n"
+                    )
 
                 batch = nodes[i: i + self.choice_batch_size]
                 context_str = [
