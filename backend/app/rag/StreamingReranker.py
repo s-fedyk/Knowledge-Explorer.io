@@ -11,6 +11,7 @@ from llama_index.core.llms import ChatMessage
 from llama_index.core import Settings
 from typing import Callable, Generator, List, Optional, Tuple
 from pydantic import Field, PrivateAttr, SerializeAsAny
+import re
 
 from llama_index.core.schema import (
     NodeWithScore,
@@ -24,6 +25,28 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+def extract_name(node: NodeWithScore):
+    pattern = r'\{([^}]*)\}'
+    match = re.search(pattern, node.text)
+
+    result = "(Unknown name)"
+    if match:
+        result = match.group(1)  # Gets the content inside the braces
+
+    return result
+
+
+def extract_doc(text: str) -> int:
+    pattern = r'Document (\d+):'
+    match = re.search(pattern, text)
+
+    if match:
+        document_number = match.group(1)
+        return int(document_number)
+
+    return -1
 
 
 class StreamingReranker(LLMRerank):
@@ -91,6 +114,11 @@ class StreamingReranker(LLMRerank):
                 yield "[no nodes to rerank]"
             return _empty_stream(), ""
 
+            logger.info(
+                "Node_names=%s",
+                node_names
+            )
+
         # 1) define your streamer
         def _stream():
             total = len(nodes)
@@ -105,12 +133,12 @@ class StreamingReranker(LLMRerank):
                     )
 
                 batch = nodes[i: i + self.choice_batch_size]
+                node_names = list(map(extract_name, batch))
                 context_str = [
                     f"Document {i}:\n{node.text}\n" for i, node in enumerate(batch)
                 ]
-
                 logger.info("context is = [%s]", context_str)
-
+                current_doc = ""
                 result_str = ""
                 for chunk in self.llm.stream(
                     self.choice_select_prompt,
@@ -118,7 +146,21 @@ class StreamingReranker(LLMRerank):
                     query_str=query_bundle.query_str,
                 ):
                     result_str += chunk
+                    current_doc += chunk
+
+                    if chunk == "\n\n":
+                        idx = extract_doc(current_doc)
+                        name = node_names[idx]
+                        yield ChatResponse(message=ChatMessage(), delta=" ")
+                        yield ChatResponse(message=ChatMessage(), delta=name)
+                        current_doc = ""
                     yield ChatResponse(message=ChatMessage(), delta=chunk)
+
+                if extract_doc(current_doc) != -1:
+                    idx = extract_doc(current_doc)
+                    name = node_names[idx]
+                    yield ChatResponse(message=ChatMessage(), delta=" ")
+                    yield ChatResponse(message=ChatMessage(), delta=name)
 
                 logger.info("Full rerank is %s", result_str)
                 # parse final response of this batch

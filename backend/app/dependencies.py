@@ -66,7 +66,7 @@ collect {
     UNWIND nodes as n
     MATCH (c:Chunk)-[:MENTIONS]->(n)
     WITH c, count(distinct n) as freq
-    RETURN c.text AS chunkText
+    RETURN "{("+c.id+")} " + c.text AS chunkText
     ORDER BY freq DESC
     LIMIT 10
 } AS text_mapping,
@@ -74,28 +74,28 @@ collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m) 
     WHERE NOT m IN nodes
-    RETURN "(" +n.name + ")->(" + m.name + ") "+r.relationship_description AS descriptionText
+    RETURN "{(" +n.name + ")["+type(r)+"]->(" + m.name + ")} "+r.relationship_description AS descriptionText
     LIMIT 30
 } as outsideRels,
 collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m) 
     WHERE m IN nodes
-    RETURN "(" +n.name + ")->(" + m.name + ") "+ r.relationship_description AS descriptionText
+    RETURN "{(" +n.name + ")[type(r)]->(" + m.name + ")} "+ r.relationship_description AS descriptionText
     LIMIT 30
 } as insideRels,
 collect {
     UNWIND nodes as n
     MATCH (n)
     WHERE NOT n:__Question__
-    RETURN "(" + n.name + ") " + n.entity_description AS descriptionText
+    RETURN "{(" + n.name + ")} " + n.entity_description AS descriptionText
     LIMIT 30
 } as entities,
 collect {
     UNWIND nodes as n
     MATCH (n)-[r]-(m:__Entity__) 
-    WHERE NOT m IN nodes AND NOT n:__Question__
-    RETURN "(" + n.name + ") " + n.entity_description AS descriptionText
+    WHERE NOT m IN nodes AND NOT m:__Question__
+    RETURN DISTINCT "{(" + m.name + ")} " + m.entity_description AS descriptionText
     LIMIT 30
 } as relatedEntities
 RETURN apoc.text.join([n IN nodes | toString(id(n))], '|') + "[SPLIT]"+ apoc.text.join(text_mapping, '|') +

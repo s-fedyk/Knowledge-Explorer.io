@@ -291,12 +291,16 @@ async def local_query(context: LocalQueryContext):
     logger.info("Query is %s", context.query_data["query"])
 
     context_nodes, sources = await engine.aretrieve_context(entities)
-
-    logger.info("Source nodes are")
     context.sources = sources
 
+    return context_nodes
+
+
+async def rerank(nodes: list[NodeWithScore], context: LocalQueryContext):
+    jobs_collection: JobsCollection = context.jobs_collection
+
     jobs = []
-    for serialized_nodes in context_nodes:
+    for serialized_nodes in nodes:
         job_id = str(uuid.uuid4())
         job_params = {
             "query": context.query_data["stage"],
@@ -328,7 +332,7 @@ async def get_global_search_context(
         engine=get_global_engine(query_data["top_k"]),
         jobs_collection=await get_jobs_collection(),
         query_data=query_data,
-        sources=None
+        sources=None,
     )
 
     return context
@@ -342,7 +346,7 @@ async def get_local_search_context(
         engine=get_local_engine(query_data["top_k"]),
         jobs_collection=await get_jobs_collection(),
         query_data=query_data,
-        sources=None
+        sources=None,
     )
 
     return context
@@ -357,8 +361,12 @@ def get_local_search_stages():
         name="Gather context"
     )
 
+    stage_2_rerank = Step(
+        step_function=rerank
+    )
     stage_2_query = Step(
-        step_function=local_query
+        step_function=local_query,
+        next_step=stage_2_rerank
     )
     stage_2 = Stage(
         first_step=stage_2_query,
