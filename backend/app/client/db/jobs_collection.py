@@ -46,6 +46,7 @@ class JobsCollection(MongoDBBase):
                          query_id: str,
                          stage: str,
                          params: Dict[str, Any],
+                         query_params: Dict[str, Any],
                          job_type: str,
                          ) -> Dict[str, Any]:
         """Create a new job record"""
@@ -57,6 +58,7 @@ class JobsCollection(MongoDBBase):
             "stage": stage,
             "job_type": job_type,
             "params": params,
+            "query_params": query_params,
             "status": Status.PENDING,
             "created_at": now,
             "updated_at": now,

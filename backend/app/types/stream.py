@@ -1,10 +1,10 @@
-from typing import Generator
+from typing import Generator, Dict, Any
 from app.dependencies import get_global_engine, get_local_engine
 
 
-def get_job_generator(jobType: str, top_k: int = 3, *args) -> Generator:
-    global_engine = get_global_engine(top_k)
-    local_engine = get_local_engine(top_k)
+def get_job_generator(jobType: str, query_params: Dict[str, Any], *args) -> Generator:
+    global_engine = get_global_engine(query_params["top_k"])
+    local_engine = get_local_engine(query_params["top_k"])
 
     jobTypeToJobStream = {
         "community_summary": global_engine.stream_answer_from_summary,

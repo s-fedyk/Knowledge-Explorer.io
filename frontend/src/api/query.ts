@@ -40,36 +40,107 @@ export interface JobStreamParams {
 }
 
 export class APIClient {
-  public async step(queryId: string, stage: int): Promise<StepResponse> {
-    try {
-      const response = await fetch(
-        `${API_ENDPOINTS.STEP}/${queryId}/${stage}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
+  private async delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw this.createApiError(errorData, response.status);
-      }
-
-      return (await response.json()) as StepResponse;
-    } catch (error) {
-      if ((error as ApiError).status) {
-        throw error;
-      }
-      throw this.createApiError(
-        {
-          error: "network_error",
-          message: `Failed to execute step: ${(error as Error).message}`,
-        },
-        500,
-      );
+  private parseRetryAfter(retryAfterHeader: string | null): number {
+    if (!retryAfterHeader) {
+      return 1000; // Default 1 second if no header
     }
+
+    // Parse as decimal seconds and convert to milliseconds
+    const seconds = parseFloat(retryAfterHeader);
+    return !isNaN(seconds) ? seconds * 1000 : 1000;
+  }
+
+  public async step(
+    queryId: string,
+    stage: number,
+    options: {
+      maxRetries?: number;
+      maxRetryDelay?: number;
+    } = {},
+  ): Promise<StepResponse> {
+    const { maxRetries = 10, maxRetryDelay = 30000 } = options; // Default max 30 seconds delay
+    let retryCount = 0;
+
+    while (retryCount <= maxRetries) {
+      try {
+        const response = await fetch(
+          `${API_ENDPOINTS.STEP}/${queryId}/${stage}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        // Handle 202 - operation still in progress, retry after specified delay
+        if (response.status === 202) {
+          if (retryCount === maxRetries) {
+            throw this.createApiError(
+              {
+                error: "max_retries_exceeded",
+                message: `Step operation did not complete after ${maxRetries} retries`,
+              },
+              202,
+            );
+          }
+
+          const retryAfterHeader = response.headers.get("retry-after");
+          const delayMs = Math.min(
+            this.parseRetryAfter(retryAfterHeader),
+            maxRetryDelay,
+          );
+
+          await this.delay(delayMs);
+          retryCount++;
+          continue;
+        }
+
+        // Handle other non-ok responses
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw this.createApiError(errorData, response.status);
+        }
+        return (await response.json()) as StepResponse;
+      } catch (error) {
+        // If it's already an ApiError with a status, re-throw it
+        if ((error as ApiError).status) {
+          throw error;
+        }
+
+        // Handle network errors - only retry if we haven't exceeded max retries
+        if (retryCount < maxRetries) {
+          console.log(
+            `Network error on step operation, retrying in 1s (attempt ${retryCount + 1}/${maxRetries + 1}): ${(error as Error).message}`,
+          );
+          await this.delay(1000);
+          retryCount++;
+          continue;
+        }
+
+        // Max retries exceeded for network error
+        throw this.createApiError(
+          {
+            error: "network_error",
+            message: `Failed to execute step after ${maxRetries + 1} attempts: ${(error as Error).message}`,
+          },
+          500,
+        );
+      }
+    }
+
+    // This should never be reached, but included for completeness
+    throw this.createApiError(
+      {
+        error: "max_retries_exceeded",
+        message: `Step operation failed after ${maxRetries + 1} attempts`,
+      },
+      500,
+    );
   }
 
   public async streamJob(

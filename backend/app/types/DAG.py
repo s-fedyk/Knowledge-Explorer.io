@@ -93,6 +93,10 @@ async def store_summaries(
     logger.info("Storing summaries=%s", summaries)
 
     jobs = []
+
+    query_params = {
+        "top_k": context.query_data["top_k"]
+    }
     for summary in summaries:
         job_id = str(uuid.uuid4())
         job_params = {
@@ -104,6 +108,7 @@ async def store_summaries(
             query_id=query_id,
             stage=stage,
             job_type="community_summary",
+            query_params=query_params,
             params=job_params,
         )
         jobs.append(job_id)
@@ -167,6 +172,9 @@ async def gather_entities(
         params={
             "query": query,
             "entities": reports
+        },
+        query_params={
+            "top_k": context.query_data["top_k"]
         }
     )
 
@@ -219,6 +227,9 @@ async def aggregate_reports(
         job_type="report-aggregation",
         params={
             "reports": reports
+        },
+        query_params={
+            "top_k": context.query_data["top_k"]
         }
     )
 
@@ -239,6 +250,9 @@ async def extract_entities(context: LocalQueryContext):
         job_type="entity-extraction",
         params={
             "query": context.query_data["query"]
+        },
+        query_params={
+            "top_k": context.query_data["top_k"]
         }
     )
 
@@ -294,6 +308,10 @@ async def local_query(context: LocalQueryContext):
             stage=context.query_data["stage"],
             job_type="rerank",
             params=job_params,
+            query_params={
+                "top_k": context.query_data["top_k"]
+            }
+
         )
         jobs.append(job_id)
 
@@ -304,11 +322,10 @@ async def local_query(context: LocalQueryContext):
 
 async def get_global_search_context(
         query_data: dict[str, Any],
-        top_k: int = 3
 ):
     context = GlobalQueryContext(
         context_type="Global",
-        engine=get_global_engine(top_k),
+        engine=get_global_engine(query_data["top_k"]),
         jobs_collection=await get_jobs_collection(),
         query_data=query_data,
         sources=None
@@ -319,11 +336,10 @@ async def get_global_search_context(
 
 async def get_local_search_context(
     query_data: dict[str, Any],
-    top_k: int = 3
 ):
     context = LocalQueryContext(
         context_type="local",
-        engine=get_local_engine(top_k),
+        engine=get_local_engine(query_data["top_k"]),
         jobs_collection=await get_jobs_collection(),
         query_data=query_data,
         sources=None

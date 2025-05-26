@@ -291,14 +291,23 @@ async def stream_job(
         job
     )
     job_type: str = job["job_type"]
-    job_parameters = job["params"].values()
+    job_params = job["params"].values()
+    query_params = job["query_params"]
 
     logger.info(
-        "params=[%s]",
-        job_parameters
+        "query params=[%s]",
+        query_params
+    )
+    logger.info(
+        "job params=[%s]",
+        job_params
     )
 
-    response_data = get_job_generator(job_type, 5, *job_parameters)
+    response_data = get_job_generator(
+        job_type,
+        query_params,
+        *job_params
+    )
 
     response_gen = None
     additional_data = None
