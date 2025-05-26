@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Coroutine
+from typing import Optional, Callable, Coroutine, Any
 import uuid
 from fastapi import HTTPException
 from app.client.mongo_client import get_jobs_collection, get_queries_collection
@@ -16,8 +16,7 @@ class StepContext(BaseModel):
     context_type: str
     jobs_collection: JobsCollection
     queries_collection: QueriesCollection
-    query_id: Optional[str]
-    query: Optional[str]
+    query_data: dict[str, Any]
 
 
 class GlobalQueryContext(StepContext):
@@ -73,8 +72,8 @@ class Stage(BaseModel):
         """Factory method to create a Stage with cleaner interface"""
         return cls(first_step=first_step, name=stage_name, last=last)
 
-    async def execute(self, queryID: str, context: StepContext) -> list[tuple[str, list[str]]]:
-        return await self.first_step.take_step(queryID, context=context)
+    async def execute(self, context: StepContext) -> list[tuple[str, list[str]]]:
+        return await self.first_step.take_step(context=context)
 
 
 async def store_summaries(
@@ -83,11 +82,10 @@ async def store_summaries(
 ) -> list[tuple[str, list[str]]]:
 
     jobs_collection: JobsCollection = context.jobs_collection
-    assert (context.query_id is not None)
-    assert (context.query is not None)
 
-    query_id: str = context.query_id
-    query: str = context.query
+    query_id: str = context.query_data["query_id"]
+    query: str = context.query_data["query"]
+    stage = context.query_data["stage"]
 
     logger.info("Storing summaries=%s", summaries)
 
@@ -101,7 +99,7 @@ async def store_summaries(
         await jobs_collection.create_job(
             job_id=job_id,
             query_id=query_id,
-            stage=1,
+            stage=stage,
             job_type="community_summary",
             params=job_params,
         )
@@ -115,11 +113,14 @@ async def store_summaries(
 
 # TODO: fix sources.
 async def gather_summaries(
-        query: str,
         context: GlobalQueryContext
 ):
     engine: GraphRAGQueryEngine = context.engine
-    summaries, sources = await engine.aget_summaries(query)
+    query: str = context.query_data["query"]
+
+    summaries, sources = await engine.aget_summaries(
+        query
+    )
     return summaries
 
 
@@ -128,15 +129,51 @@ class UncompletedJobsException(Exception):
     pass
 
 
-async def gather_reports(
-    query_id: str,
-    context: GlobalQueryContext
+async def gather_entities(
+    context: LocalQueryContext
 ):
-    context.query_id = query_id
     jobs_collection: JobsCollection = context.jobs_collection
+
+    query_id = context.query_data["query_id"]
+    query = context.query_data["query"]
+    stage = context.query_data["stage"]
+
+    logger.info("gathering entities...")
     completed_jobs = await jobs_collection.get_jobs_by_stage(
         query_id,
-        1
+        stage
+    )
+
+    reports = ""
+    for job in completed_jobs:
+        reports += job["result"]
+
+    logger.info("Entity context is %s", reports)
+    job_id = str(uuid.uuid4())
+    await jobs_collection.create_job(
+        job_id=job_id,
+        query_id=query_id,
+        stage=stage,
+        job_type="entity-aggregation",
+        params={
+            "query": query,
+            "entities": reports
+        }
+    )
+
+    jobs = [job_id]
+    return [
+        ("entity-aggregation", jobs)
+    ]
+
+
+async def gather_reports(
+    context: GlobalQueryContext
+):
+    jobs_collection: JobsCollection = context.jobs_collection
+    completed_jobs = await jobs_collection.get_jobs_by_stage(
+        context.query_data["query_id"],
+        context.query_data["stage"]
     )
 
     results = []
@@ -160,115 +197,151 @@ async def aggregate_reports(
     reports: list[str],
     context: GlobalQueryContext
 ):
-    assert (context.query_id is not None)
+    query_id = context.query_data["query_id"]
+    stage = context.query_data["stage"]
 
     jobs_collection: JobsCollection = context.jobs_collection
     job_id = str(uuid.uuid4())
 
     await jobs_collection.create_job(
         job_id=job_id,
-        query_id=context.query_id,
-        stage=2,
+        query_id=query_id,
+        stage=stage,
         job_type="report_aggregation",
         params={
             "reports": reports
         }
     )
 
+    jobs = [job_id]
     return [
-        ("final", [job_id])
+        ("final", jobs)
     ]
 
 
-async def get_query(
-    query_id: str,
-    context: StepContext,
-) -> str:
-
-    queries_collection: QueriesCollection = context.queries_collection
-    query_data = await queries_collection.get_query(query_id)
-
-    if not query_data:
-        raise HTTPException(
-            status_code=404,
-            detail="Query not found or expired"
-        )
-
-    query: str = query_data["query"]
-    context.query_id = query_id
-    context.query = query
-
-    return query
-
-
-async def local_query(query: str, context: LocalQueryContext):
-    assert context.query_id
-    engine: GraphRAGLocalQueryEngine = context.engine
-
-    context_nodes = await engine.aretrieve_context(query)
+async def extract_entities(context: LocalQueryContext):
     jobs_collection: JobsCollection = context.jobs_collection
-    query_id: str = context.query_id
+    job_id = str(uuid.uuid4())
+
+    await jobs_collection.create_job(
+        query_id=context.query_data["query_id"],
+        job_id=job_id,
+        stage=context.query_data["stage"],
+        job_type="entity-extraction",
+        params={
+            "query": context.query_data["query"]
+        }
+    )
+
+    jobs = [job_id]
+    return [
+        ("entity-extraction", jobs)
+    ]
+
+
+async def local_query(context: LocalQueryContext):
+    engine: GraphRAGLocalQueryEngine = context.engine
+    jobs_collection: JobsCollection = context.jobs_collection
+
+    # Previous stage produced entities
+    entity_extraction_job = await jobs_collection.get_jobs_by_stage(
+        context.query_data["query_id"],
+        context.query_data["stage"] - 1
+    )
+
+    logger.info(
+        "Local query previous job results = [%s]",
+        entity_extraction_job
+    )
+
+    entities = ""
+    for job in entity_extraction_job:
+        entities += job["result"]
+
+    context_nodes = await engine.aretrieve_context(context.query_data["query"])
 
     jobs = []
     for serialized_nodes in context_nodes:
         job_id = str(uuid.uuid4())
         job_params = {
-            "query": query,
+            "query": context.query_data["stage"],
             "nodes_str": serialized_nodes,
         }
         await jobs_collection.create_job(
             job_id=job_id,
-            query_id=query_id,
-            stage=1,
+            query_id=context.query_data["query_id"],
+            stage=context.query_data["stage"],
             job_type="rerank",
             params=job_params,
         )
         jobs.append(job_id)
 
-    return [("rerank", jobs)]
+    return [
+        ("rerank", jobs)
+    ]
 
 
-async def get_global_search_context(top_k: int = 3):
+async def get_global_search_context(
+        query_data: dict[str, Any],
+        top_k: int = 3
+):
     context = GlobalQueryContext(
         context_type="Global",
         engine=get_global_engine(top_k),
         jobs_collection=await get_jobs_collection(),
         queries_collection=await get_queries_collection(),
-        query_id=None,
-        query=None
+        query_data=query_data
     )
 
     return context
 
 
-async def get_local_search_context(top_k: int = 3):
+async def get_local_search_context(
+    query_data: dict[str, Any],
+    top_k: int = 3
+):
     context = LocalQueryContext(
         context_type="local",
         engine=get_local_engine(top_k),
         jobs_collection=await get_jobs_collection(),
         queries_collection=await get_queries_collection(),
-        query_id=None,
-        query=None
+        query_data=query_data
     )
 
     return context
 
 
 def get_local_search_stages():
-    stage_1_query_and_store = Step(
-        step_function=local_query
+    stage_1_extract_entities = Step(
+        step_function=extract_entities
     )
-    stage_1_get_query = Step(
-        step_function=get_query,
-        next_step=stage_1_query_and_store
-    )
-
     stage_1 = Stage(
-        first_step=stage_1_get_query,
+        first_step=stage_1_extract_entities,
         name="Gather context"
     )
 
-    return [stage_1]
+    stage_2_query = Step(
+        step_function=local_query
+    )
+    stage_2 = Stage(
+        first_step=stage_2_query,
+        name="Gathering entities"
+    )
+
+    stage_3_gather = Step(
+        step_function=gather_entities
+    )
+
+    stage_3 = Stage(
+        first_step=stage_3_gather,
+        name="Aggregating reports"
+    )
+
+    return [
+        stage_1,
+        stage_2,
+        stage_3
+    ]
 
 
 def get_global_search_stages():
@@ -279,12 +352,8 @@ def get_global_search_stages():
         step_function=gather_summaries,
         next_step=stage_1_distribute_jobs,
     )
-    stage_1_get_query = Step(
-        step_function=get_query,
-        next_step=stage_1_gather_summaries,
-    )
     stage_1 = Stage(
-        first_step=stage_1_get_query,
+        first_step=stage_1_gather_summaries,
         name="Gather summaries",
     )
 
@@ -324,9 +393,12 @@ def get_stages(mode: str) -> list[Stage]:
     return mode_to_stage[mode]
 
 
-async def get_context(mode) -> StepContext:
+async def get_context(
+    mode: str,
+    query_data: dict[str, Any]
+) -> StepContext:
     mode_to_context = {
-        "global": get_global_search_context(),
-        "local": get_local_search_context()
+        "global": get_global_search_context(query_data),
+        "local": get_local_search_context(query_data)
     }
     return await mode_to_context[mode]

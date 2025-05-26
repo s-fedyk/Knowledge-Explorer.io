@@ -28,7 +28,6 @@ export const MessageProvider = ({ children }) => {
   const [stage, setStage] = useState(0);
   const [pending, setPending] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [jobs, setJobs] = useState([]);
 
   /**
    * Injects new sections into the last bot message
@@ -78,6 +77,7 @@ export const MessageProvider = ({ children }) => {
 
     setLoading(true);
     (async () => {
+      console.log("Stepping into stage", stage);
       const { jobs } = await Client.step(queryID, stage);
       const sections = jobs.flatMap(([type, ids]) =>
         ids.map((id) => ({

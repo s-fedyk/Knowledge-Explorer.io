@@ -34,13 +34,11 @@ class MongoDBClient(MongoDBBase):
     async def cleanup_old_data(self, hours: int = 24) -> Dict[str, int]:
         """Clean up queries older than specified hours"""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-
         queries_result = await self.queries.collection.delete_many(
             {"created_at": {"$lt": cutoff_time}}
         )
 
         # We don't delete documents automatically
-
         return {
             "queries_deleted": queries_result.deleted_count
         }

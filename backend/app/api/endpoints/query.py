@@ -130,7 +130,9 @@ async def step(query_id: str, step: int):
     """
     Do everything in the stage.
     """
+    logger.info(f"Step request for {query_id}")
     try:
+
         queries_collection = await get_queries_collection()
         query_data = await queries_collection.get_query(
             query_id
@@ -148,8 +150,8 @@ async def step(query_id: str, step: int):
             step,
         )
 
-        context = await get_context(mode)
-        jobs = await stage.execute(query_id, context)
+        context = await get_context(mode, query_data)
+        jobs = await stage.execute(context)
         logger.info("Resulting jobs=[%s]", jobs)
 
         return {

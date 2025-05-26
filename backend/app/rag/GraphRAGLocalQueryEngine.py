@@ -48,7 +48,6 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         return cleaned_response
 
     def stream_entity_extraction(self, query_str: str, max_entities: int = 5) -> Generator:
-
         prompt = f"""
         -Goal-
         Given a text query, extract up to {max_entities} entities relating to the query.

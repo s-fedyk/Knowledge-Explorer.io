@@ -18,10 +18,13 @@ const SectionFactory = ({ section }) => {
     case "summary":
       return <SummaryBlock {...blockProps} />;
 
-    case "entity":
+    case "entity-extraction":
       return <EntityBlock {...blockProps} />;
 
     case "final":
+      return <FinalBlock {...blockProps} />;
+
+    case "entity-aggregation":
       return <FinalBlock {...blockProps} />;
 
     case "rerank":
