@@ -278,8 +278,8 @@ async def stream_job(
     """
     logger.info(f"Request to execute job: {job_id}")
     jobs_collection = await get_jobs_collection()
-
     job = await jobs_collection.get_job(job_id)
+
     if not job:
         raise HTTPException(
             status_code=404,

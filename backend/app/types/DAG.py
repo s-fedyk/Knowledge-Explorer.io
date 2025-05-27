@@ -454,7 +454,7 @@ async def get_context(
     query_data: dict[str, Any]
 ) -> StepContext:
     mode_to_context = {
-        "global": get_global_search_context(query_data),
-        "local": get_local_search_context(query_data)
+        "global": await get_global_search_context(query_data),
+        "local": await get_local_search_context(query_data)
     }
-    return await mode_to_context[mode]
+    return mode_to_context[mode]

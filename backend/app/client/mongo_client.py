@@ -71,5 +71,7 @@ async def get_index_info_collection() -> IndexInfoCollection:
 
 
 async def get_jobs_collection() -> JobsCollection:
+    logger.info("Getting job collection...")
     client = await get_mongo_client()
+    logger.info("Got job collection!")
     return client.jobs

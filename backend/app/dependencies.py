@@ -11,10 +11,18 @@ from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core import Settings
 from app.config import settings
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 def get_neo4j_driver():
     """Get or create a Neo4j driver."""
+    logger.info("Getting neo4j driver...")
     try:
         driver = GraphDatabase.driver(
             settings.neo4j_uri,
@@ -24,18 +32,26 @@ def get_neo4j_driver():
         with driver.session(database=settings.neo4j_database) as session:
             result = session.run("RETURN 1")
             result.single()
+
+        logger.info("Driver up...")
         return driver
     except Exception as e:
         raise ConnectionError(f"Failed to connect to Neo4j: {e}")
 
 
 def get_graph_store() -> GraphRAGStore:
-    store = GraphRAGStore(
-        username=settings.neo4j_username,
-        password=settings.neo4j_password,
-        url=settings.neo4j_uri,
-    )
-    return store
+    logger.info("Getting GraphRAGStore")
+    try:
+        store = GraphRAGStore(
+            username=settings.neo4j_username,
+            password=settings.neo4j_password,
+            url=settings.neo4j_uri,
+        )
+        logger.info("GraphRAGStore retrieved!")
+        return store
+    except Exception as e:
+        logger.info("Failed to connect to GraphRAGStore")
+        raise Exception(e)
 
 
 def get_vector_store():
@@ -43,6 +59,7 @@ def get_vector_store():
     driver = get_neo4j_driver()
 
     # Create Neo4j vector store
+    logger.info("Creating neo4j vector store...")
     vector_store = Neo4jVectorStore(
         username=settings.neo4j_username,
         password=settings.neo4j_password,
@@ -55,6 +72,7 @@ def get_vector_store():
         metadata_node_property="metadata",
         embedding_dimension=3072
     )
+    logger.info("Vector store connection established...")
 
     return vector_store
 
@@ -129,6 +147,7 @@ def get_local_engine(top_k: int):
     driver = get_neo4j_driver()
 
     # Create Neo4j vector store
+    logger.info("Connecting to vector store...")
     vector_store = Neo4jVectorStore(
         username=settings.neo4j_username,
         password=settings.neo4j_password,
@@ -143,16 +162,21 @@ def get_local_engine(top_k: int):
         retrieval_query=RET_QUERY,
         embedding_dimension=3072,
     )
+    logger.info("Vector store connection established.")
 
+    logger.info("Creating index...")
     local_index = VectorStoreIndex.from_vector_store(
         vector_store,
         embed_model=Settings.embed_model
     )
+    logger.info("Index up!")
 
+    logger.info("Creating query engine...")
     local_query_engine = GraphRAGLocalQueryEngine(
         index=local_index,
         similarity_top_k=top_k
     )
+    logger.info("Query engine up!")
 
     return local_query_engine
 
@@ -166,6 +190,8 @@ embedding: Null, id: node.id } AS metadata
 
 def get_global_engine(top_k: int):
     driver = get_neo4j_driver()
+
+    logger.info("Connecting to vector store...")
     vector_store = Neo4jVectorStore(
         username=settings.neo4j_username,
         password=settings.neo4j_password,
@@ -179,18 +205,24 @@ def get_global_engine(top_k: int):
         retrieval_query=RET_QUERY_COMMUNITY,
         embedding_dimension=3072
     )
+    logger.info("Vector store connection established...")
+
     graph_store = get_graph_store()
 
+    logger.info("Creating index")
     index = VectorStoreIndex.from_vector_store(
         vector_store=vector_store,
         embed_model=Settings.embed_model
     )
+    logger.info("Index created!")
 
+    logger.info("Creating query engine...")
     query_engine = GraphRAGQueryEngine(
         graph_store=graph_store,
         index=index,
         similarity_top_k=top_k
     )
+    logger.info("Query engine up!")
 
     return query_engine
 

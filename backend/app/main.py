@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from app.client.mongo_client import get_mongo_client
 from app.client.s3_client import get_s3_client
 from app.dependencies import init_settings
+import os
 
 
 @asynccontextmanager
@@ -24,11 +25,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+env: str = os.getenv("ENV", "dev")
+
+origins = ["*"]
+if env == "produdction":
+    origins = ["http://knowledge-explorer.io"]
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend domain
+    allow_origins=origins,  # In production, specify your frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

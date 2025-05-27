@@ -115,6 +115,7 @@ class GraphRAGLocalQueryEngine(CustomQueryEngine):
         Extract entities now. Do not provide explanations or follow-up questions.
         Think step-by-step, providing the answers after a newline.
         """
+        logger.info("Starting job stream...")
         messages = [
             ChatMessage(role="system", content=prompt),
             ChatMessage(
