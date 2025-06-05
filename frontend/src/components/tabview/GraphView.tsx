@@ -5,185 +5,172 @@ import React, { FC, useState, useEffect, useMemo } from "react";
 import { useNodesWithRelations } from "@api/apollo.ts";
 import { useGraphView } from "@context/GraphViewContext";
 import GraphSidebar from "./GraphSidebar";
-import "./GraphView.css"; // For the slide animations
+// Custom CSS for graph view, potentially including slide animations for the sidebar.
+import "./GraphView.css";
 
 /**
- * Assigns vibrant colors to nodes based on their labels
- * @param {Array} nodes - The array of nodes to process
- * @returns {Array} The same nodes with colors assigned
+ * @file GraphView.tsx
+ * @description Component for rendering and interacting with a graph visualization
+ * using Neo4j NVL (Neo4j Visual Library). It fetches graph data based on node IDs,
+ * assigns colors to nodes, handles user interactions like clicks on nodes/relationships,
+ * and displays a sidebar with details of the selected graph element.
  */
-function assignColors(nodes) {
-  // Vibrant colors that will "pop" against a gray-white background
+
+/**
+ * Assigns distinct, vibrant colors to nodes based on their labels.
+ * If a node has multiple labels, the color for the first label is used.
+ * Nodes without labels get a default neutral color.
+ * This helps in visually distinguishing different types of nodes in the graph.
+ *
+ * @param {Node[]} nodes - An array of node objects from the graph data.
+ * Each node object is expected to have a `labels` array.
+ * @returns {Node[]} The same array of nodes, with an added `color` property,
+ * `size`, `stroke`, and `strokeWidth` for styling.
+ */
+function assignColors(nodes: Node[]): Node[] {
+  // A curated list of vibrant colors for node visualization.
   const glowColors = [
-    "#FF006E", // Hot Pink
-    "#3A86FF", // Bright Blue
-    "#8338EC", // Vibrant Purple
-    "#FB5607", // Vermilion
-    "#06D6A0", // Mint
-    "#FFBE0B", // Amber
-    "#00BBF9", // Cyan
-    "#9B5DE5", // Amethyst
-    "#F15BB5", // Magenta
-    "#00F5D4", // Aquamarine
-    "#7209B7", // Deep Purple
+    "#FF006E", // Hot Pink (Primary entities)
+    "#3A86FF", // Bright Blue (Secondary entities/concepts)
+    "#8338EC", // Vibrant Purple (Actions/Events)
+    "#FB5607", // Vermilion (Important flags/warnings)
+    "#06D6A0", // Mint (Data points/metrics)
+    "#FFBE0B", // Amber (Categories/Groups)
+    "#00BBF9", // Cyan (Locations/Sources)
+    "#9B5DE5", // Amethyst (Users/People)
+    "#F15BB5", // Magenta (Documents/Files)
+    "#00F5D4", // Aquamarine (Temporal data/Timestamps)
+    "#7209B7", // Deep Purple (Abstract concepts)
   ];
 
-  // Collect all unique labels
-  const uniqueLabels = new Set();
+  // Collect all unique labels from the provided nodes.
+  const uniqueLabels = new Set<string>();
   nodes.forEach((node) => {
     if (node.labels && node.labels.length > 0) {
       node.labels.forEach((label) => uniqueLabels.add(label));
     }
   });
 
-  // Map labels to colors
-  const labelColorMap = {};
+  // Create a map from label to color.
+  // Each unique label gets a color from the `glowColors` array in a round-robin fashion.
+  const labelColorMap: Record<string, string> = {};
   Array.from(uniqueLabels).forEach((label, index) => {
     labelColorMap[label] = glowColors[index % glowColors.length];
   });
 
-  // Assign colors to nodes
+  // Assign visual properties (color, size, stroke) to each node.
   return nodes.map((node) => {
-    // Default color for nodes without labels
+    const defaultVisuals = {
+      size: 25, // Standard node size.
+      stroke: "#FFFFFF", // White stroke for better contrast.
+      strokeWidth: 3, // Stroke width.
+    };
+
+    // Assign a default neutral color if the node has no labels.
     if (!node.labels || node.labels.length === 0) {
       return {
         ...node,
-        color: "#A0AEC0", // Neutral gray
-        size: 25,
-        stroke: "#FFFFFF",
-        strokeWidth: 3,
+        color: "#A0AEC0", // Neutral gray.
+        ...defaultVisuals,
       };
     }
 
-    // For nodes with one label, use that label's color
-    if (node.labels.length === 1) {
-      return {
-        ...node,
-        color: labelColorMap[node.labels[0]],
-        size: 25,
-        stroke: "#FFFFFF",
-        strokeWidth: 3,
-      };
-    }
-
-    // For nodes with multiple labels, use the first one's color
+    // For nodes with labels, use the color mapped to their first label.
+    // NVL typically visualizes based on the primary label if multiple exist.
     return {
       ...node,
-      color: labelColorMap[node.labels[0]],
-      size: 25,
-      stroke: "#FFFFFF",
-      strokeWidth: 3,
+      color: labelColorMap[node.labels[0]] || "#A0AEC0", // Fallback to default if label somehow not in map.
+      ...defaultVisuals,
     };
   });
 }
 
+// Props for the GraphView component.
 interface GraphViewProps {
-  nodes: string[];
+  nodes: string[]; // An array of node IDs to be initially displayed or focused on in the graph.
 }
 
-function GraphView({ nodes }: GraphViewProps) {
-  const { loading, error, data } = useNodesWithRelations(nodes);
+// GraphView functional component.
+function GraphView({ nodes: initialNodeIds }: GraphViewProps) {
+  // Fetch graph data (nodes and relationships) using a custom Apollo hook (`useNodesWithRelations`).
+  // This hook likely takes an array of node IDs and fetches these nodes along with their direct relationships.
+  const { loading, error, data } = useNodesWithRelations(initialNodeIds);
 
-  // Get access to the GraphView context
+  // Access state and functions from GraphViewContext.
+  // This context manages UI state related to the graph, like selected elements and sidebar visibility.
   const {
-    selectedElement,
-    selectedElementType,
-    isExitingSidebar,
-    selectElement,
-    closeSidebar,
+    selectedElement,      // Currently selected node or relationship.
+    selectedElementType,  // Type of the selected element ('node' or 'relationship').
+    isExitingSidebar,     // Boolean to manage sidebar exit animation.
+    selectElement,        // Function to set the selected element.
+    closeSidebar,         // Function to close the details sidebar.
   } = useGraphView();
 
-  const [colorAssignments, setColorAssignments] = useState(null);
-  useEffect(() => {
-    if (data && data.nodes) {
-      const assignments = assignColors(data.nodes);
-      assignColors(assignments);
-    }
-  }, [data]);
+  // The `colorAssignments` state and associated `useEffect` seem to be unused or redundant
+  // because `nodesWithColors` directly calls `assignColors` within `useMemo`.
+  // Consider removing if not planned for other purposes.
+  // const [colorAssignments, setColorAssignments] = useState(null);
+  // useEffect(() => {
+  //   if (data && data.nodes) {
+  //     const assignments = assignColors(data.nodes);
+  //     setColorAssignments(assignments); // This state isn't directly used for rendering NVL.
+  //   }
+  // }, [data]);
 
-  // Apply colors to nodes before rendering
+  // Memoize the node coloring process.
+  // `nodesWithColors` will only be recomputed if the fetched `data` (specifically `data.nodes`) changes.
   const nodesWithColors = useMemo(() => {
     if (data && data.nodes) {
-      return assignColors(data.nodes);
+      return assignColors(data.nodes); // Assign colors to the fetched nodes.
     }
-    return [];
-  }, [data]);
+    return []; // Return an empty array if no data.
+  }, [data]); // Dependency: re-run when `data` changes.
 
+  // Define callbacks for mouse interactions with the graph (nodes, relationships, canvas).
   const mouseEventCallbacks: MouseEventCallbacks = {
-    onHover: (
-      element: Node | Relationship,
-      hitTargets: HitTargets,
-      evt: MouseEvent,
-    ) => {},
-    onRelationshipRightClick: (
-      rel: Relationship,
-      hitTargets: HitTargets,
-      evt: MouseEvent,
-    ) => {},
-    onNodeClick: (node: Node, hitTargets: HitTargets, evt: MouseEvent) => {
-      selectElement(node, "node");
+    // Placeholder for hover events. Can be used to show tooltips or highlight elements.
+    onHover: (element, hitTargets, evt) => {},
+    // Placeholder for right-clicking on a relationship.
+    onRelationshipRightClick: (rel, hitTargets, evt) => {},
+    // When a node is clicked, select it to display its details in the sidebar.
+    onNodeClick: (node, hitTargets, evt) => {
+      selectElement(node, "node"); // Update context with the selected node.
     },
-    onNodeRightClick: (
-      node: Node,
-      hitTargets: HitTargets,
-      evt: MouseEvent,
-    ) => {},
-    onNodeDoubleClick: (
-      node: Node,
-      hitTargets: HitTargets,
-      evt: MouseEvent,
-    ) => {},
-    onRelationshipClick: (
-      rel: Relationship,
-      hitTargets: HitTargets,
-      evt: MouseEvent,
-    ) => {
-      selectElement(rel, "relationship");
+    // Placeholder for right-clicking on a node.
+    onNodeRightClick: (node, hitTargets, evt) => {},
+    // Placeholder for double-clicking on a node.
+    onNodeDoubleClick: (node, hitTargets, evt) => {},
+    // When a relationship is clicked, select it for the sidebar.
+    onRelationshipClick: (rel, hitTargets, evt) => {
+      selectElement(rel, "relationship"); // Update context with the selected relationship.
     },
-    onRelationshipDoubleClick: (
-      rel: Relationship,
-      hitTargets: HitTargets,
-      evt: MouseEvent,
-    ) => {},
-    onCanvasClick: (evt: MouseEvent) => {
-      closeSidebar();
+    // Placeholder for double-clicking on a relationship.
+    onRelationshipDoubleClick: (rel, hitTargets, evt) => {},
+    // When the canvas (background) is clicked, close the sidebar.
+    onCanvasClick: (evt) => {
+      closeSidebar(); // Clear selection and hide sidebar.
     },
-    onCanvasDoubleClick: (evt: MouseEvent) => {},
-    onCanvasRightClick: (evt: MouseEvent) => {},
-    onDrag: (nodes: Node[]) => {},
-    onPan: (evt: MouseEvent) => {},
-    onZoom: (zoomLevel: number) => {},
+    // Placeholders for other canvas interactions and graph events.
+    onCanvasDoubleClick: (evt) => {},
+    onCanvasRightClick: (evt) => {},
+    onDrag: (nodes) => {}, // Called when nodes are dragged.
+    onPan: (evt) => {},   // Called when the canvas is panned.
+    onZoom: (zoomLevel) => {}, // Called when zoom level changes.
   };
 
+  // Display a loading indicator while graph data is being fetched.
   if (loading)
     return (
       <div className="flex justify-center items-center h-full bg-gray-50">
+        {/* Animated spinner and text for loading state. */}
         <div className="flex items-center space-x-2 text-gray-600">
-          <svg
-            className="animate-spin h-5 w-5"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
+          <svg /* SVG for spinner */ >...</svg>
           <span>Loading graph data...</span>
         </div>
       </div>
     );
 
+  // Display an error message if data fetching fails.
   if (error)
     return (
       <div className="p-4 bg-gray-50 text-gray-800">
@@ -191,25 +178,31 @@ function GraphView({ nodes }: GraphViewProps) {
       </div>
     );
 
+  // Render the graph visualization once data is available.
   return (
+    // Relative positioning for the main container to allow absolute positioning of the sidebar.
     <div className="relative h-full w-full">
+      {/* Container for the Neo4j NVL graph visualization. */}
       <div className="h-full w-full">
         <InteractiveNvlWrapper
-          nodes={nodesWithColors}
-          rels={data ? data.rels : []}
-          mouseEventCallbacks={mouseEventCallbacks}
+          nodes={nodesWithColors} // Pass nodes with assigned colors.
+          rels={data ? data.rels : []} // Pass relationships from fetched data.
+          mouseEventCallbacks={mouseEventCallbacks} // Attach interaction callbacks.
+          // Styling for the NVL wrapper.
           className="bg-gray-100 h-full filter drop-shadow-lg"
         />
       </div>
 
-      {/* Show unified sidebar with specialized content based on element type */}
+      {/* Conditional rendering of the GraphSidebar. */}
+      {/* Display the sidebar if an element (node or relationship) is selected. */}
       {selectedElement && selectedElementType && (
+        // Position the sidebar absolutely on the top-right of the graph view.
         <div className="absolute top-0 right-0 h-full">
           <GraphSidebar
-            element={selectedElement}
-            elementType={selectedElementType}
-            onClose={closeSidebar}
-            isExiting={isExitingSidebar}
+            element={selectedElement} // Pass the selected graph element.
+            elementType={selectedElementType} // Pass the type of the element.
+            onClose={closeSidebar} // Pass callback to close the sidebar.
+            isExiting={isExitingSidebar} // Pass state for exit animation.
           />
         </div>
       )}
